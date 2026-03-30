@@ -1,420 +1,174 @@
-# 电商数据仓库 - Java Demo 项目需求文档
+# 电商数据仓库 - 业务需求文档
 
-## 项目概述
+## 项目目标
 
-构建一个简单的电商数据仓库演示系统，集成数据分析、统计和可视化功能。
-
----
-
-## 需求清单
-
-### 1. 数据库设计（两个数据库）
-
-#### 数据库1：原始业务数据库 (ecommerce_source)
-
-存储原始的业务数据：
-
-| 表名                | 字段                                                 | 说明       |
-| ------------------- | ---------------------------------------------------- | ---------- |
-| **users**           | user_id, name, email, city, register_date            | 用户表     |
-| **products**        | product_id, name, category, price, brand             | 商品表     |
-| **orders**          | order_id, user_id, order_date, total_amount, status  | 订单表     |
-| **order_items**     | item_id, order_id, product_id, quantity, unit_price  | 订单明细表 |
-| **product_reviews** | review_id, product_id, user_id, rating, review_date  | 商品评论表 |
-| **returns**         | return_id, order_id, product_id, return_date, reason | 退货表     |
-
-#### 数据库2：分析数据库 (ecommerce_warehouse)
-
-存储分析结果和统计数据：
-
-| 表名                     | 字段                                                                             | 说明             |
-| ------------------------ | -------------------------------------------------------------------------------- | ---------------- |
-| **fact_sales**           | sales_id, product_id, category, sales_qty, sales_amount, sale_date, season       | 销售事实表       |
-| **dim_product_analysis** | product_id, name, avg_rating, total_reviews, total_sales_qty, total_sales_amount | 商品分析维度表   |
-| **fact_sales_by_season** | product_id, category, season, total_qty, total_amount, year                      | 按季节销售事实表 |
-| **fact_returns**         | return_id, product_id, order_id, return_date, return_qty, return_rate            | 退货事实表       |
-| **kpi_daily**            | kpi_date, avg_order_value, total_orders, total_sales, return_rate                | 日KPI表          |
+构建一个数据仓库系统，从两个不同来源的业务数据库（App和Web）进行数据清理、ETL处理，最后展示**销量分析**和**评论排行**数据。
 
 ---
 
-### 2. 分析需求
+## 数据源架构
 
-#### 2.1 热销商品分析
+### 数据库1：App业务系统 (ecommerce_source_app)
 
-```
-维度1：销量排行 TOP 10
-维度2：评论评分 TOP 10
-组合展示：综合评分（销量权重60% + 评论评分权重40%）
-```
+**表结构：**
 
-**查询示例**：
+| 表名                | 字段                                                | 说明       |
+| ------------------- | --------------------------------------------------- | ---------- |
+| **users**           | user_id, name, email, city, register_date           | 用户表     |
+| **products**        | product_id, name, category, price, brand            | 商品表     |
+| **orders**          | order_id, user_id, order_date, total_amount, status | 订单表     |
+| **order_items**     | item_id, order_id, product_id, quantity, unit_price | 订单明细表 |
+| **product_reviews** | review_id, product_id, user_id, rating, review_date | 商品评论表 |
 
-```sql
--- 按销量排行
-SELECT product_id, name, SUM(quantity) as total_qty
-FROM order_items oi
-JOIN products p ON oi.product_id = p.product_id
-GROUP BY product_id, name
-ORDER BY total_qty DESC LIMIT 10;
+**数据格式特征：**
 
--- 按评分排行
-SELECT p.product_id, p.name, AVG(pr.rating) as avg_rating, COUNT(pr.review_id) as review_count
-FROM products p
-LEFT JOIN product_reviews pr ON p.product_id = pr.product_id
-GROUP BY p.product_id, p.name
-HAVING COUNT(pr.review_id) >= 5
-ORDER BY avg_rating DESC LIMIT 10;
-```
+- orders.**order_id**：数字类型（INT）
+- orders.**order_date**：日期格式 `yyyy-MM-dd`
 
-#### 2.2 按商品种类和季节分析销量
+### 数据库2：Web业务系统 (ecommerce_source_web)
 
-```
-维度：
+**表结构：** 与App相同，但订单表字段名不同
+
+| 表名                | 字段                                                | 说明                     |
+| ------------------- | --------------------------------------------------- | ------------------------ |
+| **users**           | user_id, name, email, city, register_date           | 用户表                   |
+| **products**        | product_id, name, category, price, brand            | 商品表                   |
+| **orders**          | order_no, user_id, order_date, total_amount, status | 订单表（注：字段名不同） |
+| **order_items**     | item_id, order_id, product_id, quantity, unit_price | 订单明细表               |
+| **product_reviews** | review_id, product_id, user_id, rating, review_date | 商品评论表               |
+
+**数据格式特征：**
+
+- orders.**order_no**：字符+数字混合（VARCHAR，如 "WEB-001"）
+- orders.**order_date**：日期格式 `MM/dd/yyyy`
+
+**两个源库的关键差异：**
+
+| 维度              | App (source_app) | Web (source_web)  |
+| ----------------- | ---------------- | ----------------- |
+| Order ID 字段名   | order_id         | order_no          |
+| Order ID 数据格式 | 12345 (INT)      | WEB-001 (VARCHAR) |
+| Order 日期格式    | 2024-03-01       | 03/01/2024        |
+
+### 数据库3：分析数据仓库 (ecommerce_warehouse)
+
+用于存储清理、转换后的统计数据。
+
+**核心表：**
+
+| 表名                            | 用途                           |
+| ------------------------------- | ------------------------------ |
+| **fact_sales_by_category_time** | 按商品种类和时间维度的销量统计 |
+| **fact_top_rated_products**     | 按评价统计的Top商品            |
+
+---
+
+## 统计需求清单
+
+### 需求1：按商品种类和时间维度分析销量
+
+**维度：**
+
 - 商品种类（category）
-- 季节（Spring/Summer/Fall/Winter）
+- 时间维度：年、月、日
 
-指标：
+**指标：**
+
 - 销量（数量）
 - 销售额
-- 环比增长率
 
-展示：热力图或柱状图
-```
+**输出展示：**
 
-#### 2.3 平均订单价值（AOV）
+- 热力图（X轴：时间，Y轴：分类，值：销量）
+- 柱状图（按分类或时间段对比）
 
-```
-AOV = 总销售额 / 订单数
-支持时间维度：日/周/月/季度
-支持按用户等级、地区、商品类别分组
-```
-
-#### 2.4 商品退货率
+**示例查询结果：**
 
 ```
-计算方式：
-- 商品级别：某商品退货数 / 该商品销售数
-- 类别级别：某类别退货数 / 该类别销售数
-- 整体退货率：总退货数 / 总订单数
-
-展示：饼图 + 详细列表
-```
-
-#### 2.5 其他辅助分析
-
-```
-- 用户购买频率
-- 订单金额分布
-- 品牌销售对比
+Category: Electronics, Time: 2024-03, Quantity: 150, Amount: 45000
+Category: Clothing,    Time: 2024-03, Quantity: 200, Amount: 15000
+Category: Books,       Time: 2024-03, Quantity: 80,  Amount: 3200
 ```
 
 ---
 
-## 3. 系统开发方案
+### 需求2：按评论统计Top5商品
 
-### 3.1 技术栈
+**维度：**
 
-```
-后端：Java + Spring Boot
-ORM：MyBatis-Plus
-数据库：MySQL × 2
-缓存：Redis（可选）
-前端：Vue.js 3 + Echarts
-API：RESTful
-```
+- 商品种类（category）
+- 时间维度：年、月、日
 
-### 3.2 项目结构
+**指标：**
 
-```
-ecommerce-warehouse-demo/
-├── backend/
-│   ├── pom.xml
-│   ├── src/
-│   │   ├── main/java/com/example/
-│   │   │   ├── config/              # 数据库配置
-│   │   │   ├── controller/          # API控制器
-│   │   │   ├── service/             # 业务逻辑
-│   │   │   ├── mapper/              # MyBatis mapper
-│   │   │   ├── entity/              # 数据实体
-│   │   │   ├── dto/                 # 数据传输对象
-│   │   │   └── Application.java     # 启动类
-│   │   └── resources/
-│   │       ├── application.yml
-│   │       └── mapper/              # SQL XML文件
-│   └── sqls/                        # 建表脚本
-│
-├── frontend/
-│   ├── package.json
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── api/                     # API调用
-│   │   ├── App.vue
-│   │   └── main.js
-│   └── public/
-│
-└── docs/
-    ├── 需求文档.md
-    ├── 数据库设计.md
-    ├── API文档.md
-    └── 部署说明.md
-```
+- 平均评分（avg_rating）
+- 评论数（review_count）
 
-### 3.3 核心功能模块
+**输出展示：**
+
+- 排行榜（显示Top 5商品及其评分）
+
+**示例查询结果：**
 
 ```
-1. 数据导入模块 (Data Import Service)
-   - 从业务库读取原始数据
-   - 进行ETL转换
-   - 加载到分析库
-
-2. 分析计算模块 (Analysis Service)
-   - 热销商品计算
-   - 季节销量分析
-   - AOV计算
-   - 退货率计算
-
-3. 数据查询API (Query API)
-   - /api/products/top-sales       # TOP热销
-   - /api/products/top-reviews     # TOP评分
-   - /api/sales/by-season          # 季节分析
-   - /api/analytics/aov            # 平均订单价值
-   - /api/analytics/return-rate    # 退货率
-
-4. 可视化展示层 (Frontend)
-   - 仪表板页面
-   - 多种图表展示
+Product: iPhone 14,       Category: Electronics, Avg Rating: 4.8, Reviews: 150
+Product: MacBook Pro,     Category: Electronics, Avg Rating: 4.7, Reviews: 120
+Product: Samsung Galaxy,  Category: Electronics, Avg Rating: 4.6, Reviews: 100
+...
 ```
 
 ---
 
-## 4. 具体功能说明
-
-### 4.1 热销商品分析
-
-**API设计**：
+## 数据处理流程
 
 ```
-GET /api/products/hot-analysis?limit=10&type=sales|reviews|combined
-
-返回格式：
-{
-  "sales_ranking": [
-    {
-      "rank": 1,
-      "product_id": 101,
-      "product_name": "iPhone 14 Pro",
-      "category": "Electronics",
-      "total_qty": 1500,
-      "total_amount": 2250000,
-      "avg_rating": 4.8
-    },
-    ...
-  ],
-  "review_ranking": [
-    {
-      "rank": 1,
-      "product_id": 102,
-      "product_name": "南孚电池",
-      "avg_rating": 4.9,
-      "review_count": 2500,
-      "total_qty": 800
-    },
-    ...
-  ],
-  "combined_ranking": [ ... ]  // 综合排分
-}
-```
-
-### 4.2 季节销量分析
-
-**API设计**：
-
-```
-GET /api/sales/by-season?year=2024&category=all
-
-返回格式：
-{
-  "data": [
-    {
-      "category": "Electronics",
-      "spring": 500000,
-      "summer": 620000,
-      "fall": 580000,
-      "winter": 720000
-    },
-    ...
-  ]
-}
-```
-
-### 4.3 平均订单价值
-
-**API设计**：
-
-```
-GET /api/analytics/aov?dimension=day|week|month|quarter
-
-返回格式：
-{
-  "daily_aov": [
-    { "date": "2024-01-01", "aov": 2500, "order_count": 1200 },
-    ...
-  ],
-  "monthly_aov": [
-    { "month": "2024-01", "aov": 2450, "order_count": 35000 },
-    ...
-  ]
-}
-```
-
-### 4.4 退货率分析
-
-**API设计**：
-
-```
-GET /api/analytics/return-rate?type=product|category|overall
-
-返回格式：
-{
-  "overall_return_rate": 0.05,
-  "by_category": [
-    {
-      "category": "Electronics",
-      "return_rate": 0.08,
-      "return_count": 1200,
-      "total_sales": 15000
-    },
-    ...
-  ]
-}
+┌──────────────────────┐         ┌──────────────────────┐
+│ ecommerce_source_app │         │ ecommerce_source_web │
+│  (App 数据源)        │         │  (Web 数据源)        │
+└──────────┬───────────┘         └──────────┬───────────┘
+           │                               │
+           │  Data Clean-up & ETL          │
+           │  - 字段名统一                  │
+           │  - 日期格式转换                │
+           │  - 数据验证和去重              │
+           │                               │
+           └──────────┬────────────────────┘
+                      │
+                      ▼
+          ┌──────────────────────┐
+          │ ecommerce_warehouse  │
+          │  (分析数据仓库)       │
+          └──────────┬───────────┘
+                      │
+         ┌────────────┴────────────┐
+         ▼                         ▼
+    ┌─────────────────┐    ┌──────────────────┐
+    │ Sales Analysis  │    │ Top Rated Review │
+    │ by Category     │    │ Product Analysis │
+    └─────────────────┘    └──────────────────┘
+         │                         │
+         └────────────┬────────────┘
+                      ▼
+              UI 仪表板展示
 ```
 
 ---
 
-## 5. 数据库初始化
+## 技术要求
 
-### 2个数据库实例配置
-
-**database.yml**:
-
-```yaml
-# 业务库
-database:
-  primary:
-    name: ecommerce_source
-    host: localhost
-    port: 3306
-    username: root
-    password: password
-
-# 数据仓库库
-database:
-  warehouse:
-    name: ecommerce_warehouse
-    host: localhost
-    port: 3306
-    username: root
-    password: password
-```
-
-### 建表脚本位置
-
-- `sqls/source_db.sql` - 原始业务数据库建表脚本
-- `sqls/warehouse_db.sql` - 分析数据库建表脚本
-- `sqls/init_sample_data.sql` - 测试数据样本
+- **后端**：Spring Boot + MyBatis，支持多数据源查询和数据转换
+- **前端**：Vue 3，使用图表库展示热力图、柱状图、排行榜
+- **数据库**：MySQL 8.0
+- **部署**：Docker Compose 一键启动
 
 ---
 
-## 6. 前端可视化需求
+## 工作流程
 
-### 6.1 仪表板布局
-
-```
-┌─────────────────────────────────────────────────────┐
-│           电商数据仓库分析系统                      │
-├─────────────────────────────────────────────────────┤
-│  [热销商品分析]  [季节销售]  [平均订单价值]  [退货率] │
-├─────────────────────────────────────────────────────┤
-│                                                       │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
-│  │  热销TOP 10 │  │  评分TOP 10 │  │  综合排分   │ │
-│  │  (柱状图)   │  │  (柱状图)   │  │  (表格)     │ │
-│  └─────────────┘  └─────────────┘  └─────────────┘ │
-│                                                       │
-│  ┌──────────────────────────────────────────────┐   │
-│  │     季节销售热力图 (选择类别过滤)             │   │
-│  │     Spring  Summer  Fall  Winter              │   │
-│  │  └──────────────────────────────────────────┘   │
-│                                                       │
-│  ┌──────────────┐  ┌──────────────┐               │
-│  │   平均订单   │  │   退货率     │               │
-│  │   价值曲线   │  │   饼图       │               │
-│  └──────────────┘  └──────────────┘               │
-│                                                       │
-└─────────────────────────────────────────────────────┘
-```
-
-### 6.2 图表类型
-
-- 柱状图：热销商品排行、季节对比
-- 热力图：季节销售分析
-- 折线图：AOV时间序列
-- 饼图：退货率分布
-- 表格：详细数据查看
-
----
-
-## 7. 开发优先级
-
-### Phase 1（核心功能）
-
-- [x] 数据库设计和创建
-- [x] 数据导入脚本
-- [ ] 热销商品查询API
-- [ ] 基础前端展示
-
-### Phase 2（完善功能）
-
-- [ ] 季节分析API
-- [ ] AOV计算API
-- [ ] 退货率分析API
-- [ ] 高级图表展示
-
-### Phase 3（优化）
-
-- [ ] 性能优化
-- [ ] 缓存集成
-- [ ] 定时任务（ETL自动化）
-- [ ] 权限控制
-
----
-
-## 8. 技术指标
-
-| 指标         | 目标值     |
-| ------------ | ---------- |
-| API响应时间  | < 1秒      |
-| 前端加载时间 | < 3秒      |
-| 支持数据量   | 100W+ 订单 |
-| 支持并发用户 | 50+        |
-
----
-
-## 9. 交付成果
-
-- ✅ 完整源代码（Java后端 + Vue前端）
-- ✅ 数据库建表脚本
-- ✅ 测试数据集
-- ✅ API文档（Swagger）
-- ✅ 部署运行说明
-- ✅ 可视化仪表板
-
----
-
-## 下一步
-
-1. 确认需求无误
-2. 开始数据库设计详细化
-3. 设计Java后端服务结构
-4. 创建Spring Boot项目框架
+1. ✅ **需求确认**（当前阶段）- 确认数据模型和统计需求
+2. ⏳ **数据库DDL编写** - 创建两个源库和仓库库的表
+3. ⏳ **样本数据插入** - 为两个源库插入测试数据（展示数据变化时用）
+4. ⏳ **ETL逻辑开发** - 数据清理、转换和加载到仓库
+5. ⏳ **API编写** - 后端查询接口
+6. ⏳ **UI开发** - 前端仪表板
+7. ⏳ **测试和部署** - Docker部署验证

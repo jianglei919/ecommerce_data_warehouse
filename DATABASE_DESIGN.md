@@ -1,14 +1,14 @@
-# 📊 数据库设计 - 多源库汇聚架构
+# 📊 数据库设计 - App/Web数据融合架构
 
 ## 系统架构概览
 
 ```mermaid
 graph TB
-    subgraph source1["🏪 Source Database 1<br/>(ecommerce_source_1)<br/>Branch 1: Beijing/Shanghai/Guangzhou"]
+    subgraph app["📱 Source Database 1<br/>(ecommerce_source_app)<br/>Mobile App System"]
         direction LR
-        u1["👥 users<br/>3 records"]
-        p1["📦 products<br/>4 records"]
-        o1["📋 orders<br/>4 records"]
+        u1["👥 users<br/>App Users"]
+        p1["📦 products"]
+        o1["📋 orders<br/>order_id INT<br/>yyyy-MM-dd"]
         oi1["📊 order_items"]
         pr1["⭐ product_reviews"]
         r1["↩️ returns"]
@@ -19,11 +19,11 @@ graph TB
         o1 ---|1:M| r1
     end
 
-    subgraph source2["🏪 Source Database 2<br/>(ecommerce_source_2)<br/>Branch 2: Shenzhen/Hangzhou/Chengdu"]
+    subgraph web["🌐 Source Database 2<br/>(ecommerce_source_web)<br/>Web Portal System"]
         direction LR
-        u2["👥 users<br/>3 records"]
-        p2["📦 products<br/>4 records"]
-        o2["📋 orders<br/>4 records"]
+        u2["👥 users<br/>Web Users"]
+        p2["📦 products"]
+        o2["📋 orders<br/>order_no VARCHAR<br/>MM/dd/yyyy"]
         oi2["📊 order_items"]
         pr2["⭐ product_reviews"]
         r2["↩️ returns"]
@@ -34,35 +34,57 @@ graph TB
         o2 ---|1:M| r2
     end
 
-    subgraph warehouse["📊 Data Warehouse<br/>(ecommerce_warehouse)<br/>Group-Level Analytics"]
+    subgraph etl["⚙️ ETL Processing<br/>Data Transformation"]
         direction LR
-        fs["💰 fact_sales<br/>Sales Fact Table"]
-        dpa["🎯 dim_product_analysis<br/>Product Analysis Dimension"]
-        fss["📈 fact_sales_by_season<br/>Seasonal Sales"]
-        fr["📉 fact_returns<br/>Returns Analysis"]
-        kpid["📊 kpi_daily<br/>Daily KPI Metrics"]
-        fs ---|1:M| dpa
-        fss ---|1:M| dpa
-        fr ---|1:M| dpa
+        transform["🔄 Convert Formats<br/>- order_id: INT → VARCHAR<br/>- Date: MM/dd/yyyy → yyyy-MM-dd"]
     end
 
-    source1 -->|UNION ALL<br/>Aggregation| warehouse
-    source2 -->|UNION ALL<br/>Aggregation| warehouse
+    subgraph warehouse["📊 Data Warehouse<br/>(ecommerce_warehouse)<br/>Unified Analytics"]
+        direction LR
+        fs["📈 fact_sales_by_category_time"]
+        tr["📋 fact_top_rated_products"]
+    end
 
-    style source1 fill:#e1f5ff,stroke:#01579b,stroke-width:3px,color:#000
-    style source2 fill:#e8f5e9,stroke:#1b5e20,stroke-width:3px,color:#000
+    app -->|Extract| etl
+    web -->|Extract| etl
+    etl -->|Transform & Load| warehouse
+
+    style app fill:#e1f5ff,stroke:#01579b,stroke-width:3px,color:#000
+    style web fill:#e8f5e9,stroke:#1b5e20,stroke-width:3px,color:#000
     style warehouse fill:#fff3e0,stroke:#e65100,stroke-width:3px,color:#000
+    style etl fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000
 ```
 
-## 数据库1：业务源库1 (ecommerce_source_1)
+## 异构数据处理总览
+
+| 特性           | ecommerce_source_app | ecommerce_source_web |
+| -------------- | -------------------- | -------------------- |
+| **渠道**       | 移动应用端           | 网站门户端           |
+| **订单ID字段** | order_id             | order_no             |
+| **ID数据类型** | INT (12345)          | VARCHAR (WEB-001)    |
+| **日期格式**   | yyyy-MM-dd           | MM/dd/yyyy           |
+| **示例日期**   | 2024-03-15           | 03/15/2024           |
+
+**需要处理的ETL任务**：
+
+- ✅ 字段名统一：order_id / order_no → 统一处理
+- ✅ 数据类型转换：INT → VARCHAR
+- ✅ 日期格式转换：MM/dd/yyyy → yyyy-MM-dd
+
+---
+
+## 数据库1：应用端源库 (ecommerce_source_app)
 
 ### 库的用途
 
-- 存储分店1（北京/上海/广州）的所有业务数据
+- 存储移动应用渠道的所有业务数据
 - 包含6张业务表
-- 与source_2完全相同的表结构（便于数据合并）
+- 订单ID使用整数类型：`order_id INT`
+- 日期格式：`yyyy-MM-dd`
 
-### 1. 用户表 (users)
+### 表结构
+
+#### 1. 用户表 (users)
 
 ```sql
 CREATE TABLE users (
@@ -77,13 +99,7 @@ CREATE TABLE users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-**示例数据**:
-
-- 张三 (北京)
-- 李四 (上海)
-- 王五 (广州)
-
-### 2. 商品表 (products)
+#### 2. 商品表 (products)
 
 ```sql
 CREATE TABLE products (
@@ -103,15 +119,15 @@ CREATE TABLE products (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### 3. 订单表 (orders)
+#### 3. 订单表 (orders)
 
 ```sql
 CREATE TABLE orders (
-    order_id INT PRIMARY KEY AUTO_INCREMENT,
+    order_id INT PRIMARY KEY AUTO_INCREMENT,           -- 应用端使用整数
     user_id INT NOT NULL,
-    order_date DATE NOT NULL,
+    order_date DATE NOT NULL,                          -- yyyy-MM-dd 格式
     total_amount DECIMAL(12,2) NOT NULL,
-    status VARCHAR(20) DEFAULT 'completed',  -- completed, cancelled, returned
+    status VARCHAR(20) DEFAULT 'completed',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id),
@@ -120,7 +136,7 @@ CREATE TABLE orders (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### 4. 订单明细表 (order_items)
+#### 4. 订单明细表 (order_items)
 
 ```sql
 CREATE TABLE order_items (
@@ -129,7 +145,7 @@ CREATE TABLE order_items (
     product_id INT NOT NULL,
     quantity INT NOT NULL,
     unit_price DECIMAL(10,2) NOT NULL,
-    line_total DECIMAL(12,2) NOT NULL,  -- quantity * unit_price
+    line_total DECIMAL(12,2) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(product_id),
@@ -138,14 +154,14 @@ CREATE TABLE order_items (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### 5. 商品评论表 (product_reviews)
+#### 5. 商品评论表 (product_reviews)
 
 ```sql
 CREATE TABLE product_reviews (
     review_id INT PRIMARY KEY AUTO_INCREMENT,
     product_id INT NOT NULL,
     user_id INT,
-    rating INT CHECK (rating >= 1 AND rating <= 5),  -- 1-5星
+    rating INT CHECK (rating >= 1 AND rating <= 5),
     comment TEXT,
     review_date DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -156,7 +172,7 @@ CREATE TABLE product_reviews (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### 6. 退货表 (returns)
+#### 6. 退货表 (returns)
 
 ```sql
 CREATE TABLE returns (
@@ -166,7 +182,7 @@ CREATE TABLE returns (
     return_date DATE,
     return_qty INT DEFAULT 1,
     reason VARCHAR(100),
-    status VARCHAR(20) DEFAULT 'pending',  -- pending, approved, rejected
+    status VARCHAR(20) DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (order_id) REFERENCES orders(order_id),
     FOREIGN KEY (product_id) REFERENCES products(product_id),
@@ -177,396 +193,209 @@ CREATE TABLE returns (
 
 ---
 
-## 数据库2：业务源库2 (ecommerce_source_2)
+## 数据库2：网站端源库 (ecommerce_source_web)
 
 ### 库的用途
 
-- 存储分店2（深圳/杭州/成都）的所有业务数据
-- 包含6张业务表
-- 与source_1完全相同的表结构（便于数据合并）
+- 存储网站、H5等Web渠道的业务数据
+- 包含6张业务表（结构与source_app相同，主要区别在订单表）
+- 订单ID使用字符串类型：`order_no VARCHAR`
+- 日期格式需要特殊处理：`MM/dd/yyyy`（ETL时转换为yyyy-MM-dd）
 
-**示例数据**:
+### 表结构主要区别
 
-- 赵六 (深圳)
-- 孙七 (杭州)
-- 周八 (成都)
+#### 3. 订单表 (orders) - Web渠道特殊处理
 
-表结构与source_1完全一致：users、products、orders、order_items、product_reviews、returns
+```sql
+CREATE TABLE orders (
+    order_id INT PRIMARY KEY AUTO_INCREMENT,           -- 内部标识
+    order_no VARCHAR(50) NOT NULL UNIQUE,              -- Web端订单号 (WEB-001等)
+    user_id INT NOT NULL,
+    order_date DATE NOT NULL,                          -- MM/dd/yyyy格式需在ETL转换为yyyy-MM-dd
+    total_amount DECIMAL(12,2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'completed',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_order_date (order_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+**其他表结构与source_app相同**：users、products、order_items、product_reviews、returns
 
 ---
 
 ## 数据库3：分析数据仓库 (ecommerce_warehouse)
 
-### 1. 销售事实表 (fact_sales)
+### 库的用途
+
+- 存储ETL处理后的统一、清洁、分析就绪的数据
+- 包含2个核心分析表
+- 整合App和Web两个渠道的数据，处理异构数据差异
+
+### 表结构
+
+#### 1. 按分类和时间的销量事实表 (fact_sales_by_category_time)
 
 ```sql
-CREATE TABLE fact_sales (
-    sales_id INT PRIMARY KEY AUTO_INCREMENT,
-    product_id INT NOT NULL,
-    product_name VARCHAR(200),
-    category VARCHAR(50),
-    price DECIMAL(10,2),
-    quantity INT,
-    sales_amount DECIMAL(12,2),
-    sale_date DATE,
-    season VARCHAR(10),  -- Spring, Summer, Fall, Winter
-    year INT,
+CREATE TABLE fact_sales_by_category_time (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+
+    -- 维度
+    category VARCHAR(50) NOT NULL,                     -- 商品分类
+    year INT NOT NULL,                                 -- 年份
+    month INT NOT NULL,                                -- 月份 (1-12)
+    day INT,                                           -- 日期 (1-31)
+
+    -- 指标
+    total_quantity INT DEFAULT 0,                      -- 销量大于
+    total_sales_amount DECIMAL(15,2) DEFAULT 0,        -- 销售额
+
+    -- 元数据
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_product_id (product_id),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    -- 索引优化
+    UNIQUE KEY uniq_category_time (category, year, month, day),
     INDEX idx_category (category),
-    INDEX idx_sale_date (sale_date),
-    INDEX idx_season (season)
+    INDEX idx_time (year, month, day)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### 2. 商品分析维度表 (dim_product_analysis)
+**示例数据**：
 
-```sql
-CREATE TABLE dim_product_analysis (
-    analysis_id INT PRIMARY KEY AUTO_INCREMENT,
-    product_id INT NOT NULL UNIQUE,
-    name VARCHAR(200),
-    category VARCHAR(50),
-    brand VARCHAR(50),
-    avg_rating DECIMAL(3,2),  -- 平均评分
-    total_reviews INT,  -- 总评论数
-    total_sales_qty INT,  -- 总销量
-    total_sales_amount DECIMAL(15,2),  -- 总销售额
-    return_rate DECIMAL(5,4),  -- 退货率
-    rank_by_sales INT,  -- 销量排名
-    rank_by_rating INT,  -- 评分排名
-    combined_score DECIMAL(5,2),  -- 综合评分
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+Category: Electronics, Year: 2024, Month: 03, Day: 15, Quantity: 150, Amount: 45000
+Category: Clothing, Year: 2024, Month: 03, Day: 15, Quantity: 200, Amount: 15000
 ```
 
-### 3. 季节销售事实表 (fact_sales_by_season)
+#### 2. 按评分统计的Top商品表 (fact_top_rated_products)
 
 ```sql
-CREATE TABLE fact_sales_by_season (
-    season_sales_id INT PRIMARY KEY AUTO_INCREMENT,
+CREATE TABLE fact_top_rated_products (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+
+    -- 业务标识
     product_id INT NOT NULL,
+    product_name VARCHAR(200) NOT NULL,
     category VARCHAR(50),
-    season VARCHAR(10),  -- Spring, Summer, Fall, Winter
+
+    -- 评价指标
+    avg_rating DECIMAL(3,2),                          -- 平均评分 (0.00-5.00)
+    review_count INT DEFAULT 0,                        -- 评论总数
+
+    -- 时间维度
     year INT,
-    total_qty INT,
-    total_amount DECIMAL(15,2),
-    order_count INT,
-    avg_order_value DECIMAL(12,2),
+    month INT,
+    day INT,
+
+    -- 元数据
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    -- 索引优化
     INDEX idx_product_id (product_id),
-    INDEX idx_category (category),
-    INDEX idx_season (season)
+    INDEX idx_avg_rating (avg_rating DESC),
+    INDEX idx_category (category)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### 4. 退货事实表 (fact_returns)
+**示例数据**：
 
-```sql
-CREATE TABLE fact_returns (
-    return_fact_id INT PRIMARY KEY AUTO_INCREMENT,
-    product_id INT NOT NULL,
-    product_name VARCHAR(200),
-    category VARCHAR(50),
-    return_qty INT,
-    return_date DATE,
-    reason VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_product_id (product_id),
-    INDEX idx_return_date (return_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
-
-### 5. 日KPI表 (kpi_daily)
-
-```sql
-CREATE TABLE kpi_daily (
-    kpi_id INT PRIMARY KEY AUTO_INCREMENT,
-    kpi_date DATE NOT NULL UNIQUE,
-    total_orders INT,
-    total_sales DECIMAL(15,2),
-    avg_order_value DECIMAL(12,2),
-    return_rate DECIMAL(5,4),
-    total_users INT,
-    new_users INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_kpi_date (kpi_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+Product: iPhone 14, Category: Electronics, Avg Rating: 4.8, Review Count: 150
+Product: MacBook Pro, Category: Electronics, Avg Rating: 4.7, Review Count: 120
 ```
 
 ---
 
-## 关键查询
+## ETL 数据转换方案
 
-### 1. 热销商品 TOP 10（按销量）
+### 问题：异构数据格式不一致
+
+| 问题           | App源       | Web源             | 解决方案          |
+| -------------- | ----------- | ----------------- | ----------------- |
+| **订单ID类型** | INT (12345) | VARCHAR (WEB-001) | 统一为VARCHAR存储 |
+| **日期格式**   | yyyy-MM-dd  | MM/dd/yyyy        | 统一为yyyy-MM-dd  |
+| **字段名**     | order_id    | order_no          | 映射处理          |
+
+### ETL查询示例
+
+**从App源提取**：
 
 ```sql
 SELECT
-    p.product_id,
-    p.name,
-    p.category,
-    SUM(oi.quantity) as total_qty,
-    SUM(oi.line_total) as total_amount,
-    COUNT(DISTINCT o.order_id) as order_count,
-    ROUND(SUM(oi.line_total) / SUM(oi.quantity), 2) as avg_price
-FROM order_items oi
-JOIN orders o ON oi.order_id = o.order_id
-JOIN products p ON oi.product_id = p.product_id
-WHERE o.status = 'completed'
-GROUP BY p.product_id, p.name, p.category
-ORDER BY total_qty DESC
-LIMIT 10;
+    CAST(o.order_id AS CHAR) as order_id_unified,     -- 转换为VARCHAR
+    o.order_date,                                      -- 已是yyyy-MM-dd格式
+    oi.quantity,
+    p.category
+FROM app.orders o
+JOIN app.order_items oi ON o.order_id = oi.order_id
+JOIN app.products p ON oi.product_id = p.product_id;
 ```
 
-### 2. 商品评分 TOP 10
+**从Web源提取**：
 
 ```sql
 SELECT
-    p.product_id,
-    p.name,
-    p.category,
-    ROUND(AVG(pr.rating), 2) as avg_rating,
-    COUNT(pr.review_id) as review_count,
-    SUM(CASE WHEN pr.rating >= 4 THEN 1 ELSE 0 END) as positive_count
-FROM products p
-LEFT JOIN product_reviews pr ON p.product_id = pr.product_id
-GROUP BY p.product_id, p.name, p.category
-HAVING COUNT(pr.review_id) >= 5
-ORDER BY avg_rating DESC, review_count DESC
-LIMIT 10;
+    o.order_no as order_id_unified,                    -- 已是VARCHAR格式
+    STR_TO_DATE(o.order_date, '%m/%d/%Y') as order_date, -- 转换日期格式
+    oi.quantity,
+    p.category
+FROM web.orders o
+JOIN web.order_items oi ON o.order_id = oi.order_id
+JOIN web.products p ON oi.product_id = p.product_id;
 ```
 
-### 3. 按类别和季节分析销量
+**ETL整合到仓库**（销量事实表）：
 
 ```sql
+INSERT INTO warehouse.fact_sales_by_category_time (category, year, month, day, total_quantity, total_sales_amount)
 SELECT
     p.category,
-    CASE
-        WHEN MONTH(o.order_date) IN (3,4,5) THEN 'Spring'
-        WHEN MONTH(o.order_date) IN (6,7,8) THEN 'Summer'
-        WHEN MONTH(o.order_date) IN (9,10,11) THEN 'Fall'
-        ELSE 'Winter'
-    END as season,
-    YEAR(o.order_date) as year,
-    SUM(oi.quantity) as total_qty,
-    SUM(oi.line_total) as total_amount
-FROM order_items oi
-JOIN orders o ON oi.order_id = o.order_id
-JOIN products p ON oi.product_id = p.product_id
-WHERE o.status = 'completed'
-GROUP BY p.category, season, year
-ORDER BY year DESC, category;
-```
-
-### 4. 平均订单价值（AOV）
-
-```sql
-SELECT
-    DATE(o.order_date) as order_date,
     YEAR(o.order_date) as year,
     MONTH(o.order_date) as month,
-    WEEK(o.order_date) as week,
-    COUNT(o.order_id) as total_orders,
-    SUM(o.total_amount) as total_sales,
-    ROUND(SUM(o.total_amount) / COUNT(o.order_id), 2) as aov
-FROM orders o
-WHERE o.status = 'completed'
-GROUP BY year, month, DATE(o.order_date)
-ORDER BY order_date DESC;
-```
+    DAY(o.order_date) as day,
+    SUM(oi.quantity) as total_quantity,
+    SUM(oi.line_total) as total_sales_amount
+FROM
+    (-- 合并App源
+     SELECT o.order_date, oi.quantity, oi.line_total, p.category
+     FROM app.orders o
+     JOIN app.order_items oi ON o.order_id = oi.order_id
+     JOIN app.products p ON oi.product_id = p.product_id
+     WHERE o.status = 'completed'
 
-### 5. 商品退货率
+     UNION ALL
 
-```sql
-SELECT
-    p.product_id,
-    p.name,
-    p.category,
-    (SELECT COUNT(*) FROM returns r WHERE r.product_id = p.product_id) as return_count,
-    (SELECT SUM(oi.quantity) FROM order_items oi
-     JOIN orders o ON oi.order_id = o.order_id
-     WHERE oi.product_id = p.product_id AND o.status = 'completed') as total_sold,
-    ROUND(
-        (SELECT COUNT(*) FROM returns r WHERE r.product_id = p.product_id) * 100 /
-        (SELECT SUM(oi.quantity) FROM order_items oi
-         JOIN orders o ON oi.order_id = o.order_id
-         WHERE oi.product_id = p.product_id AND o.status = 'completed'),
-        2
-
-        - 存储分店1（北京/上海/广州）的所有业务数据
-        - 包含6张业务表
-        - 与source_2完全相同的表结构（便于数据合并）
-ORDER BY return_rate_percent DESC
-LIMIT 20;
-```
-
-### 6. 按季节的类别销量对比
-
-```sql
-SELECT
-    p.category,
-    CASE
-        WHEN MONTH(o.order_date) IN (3,4,5) THEN 'Spring'
-        WHEN MONTH(o.order_date) IN (6,7,8) THEN 'Summer'
-        WHEN MONTH(o.order_date) IN (9,10,11) THEN 'Fall'
-        ELSE 'Winter'
-    END as season,
-    SUM(oi.quantity) as qty,
-    ROUND(SUM(oi.line_total), 2) as amount
-FROM order_items oi
-JOIN orders o ON oi.order_id = o.order_id
-JOIN products p ON oi.product_id = p.product_id
-WHERE o.status = 'completed'
-GROUP BY p.category, season
-ORDER BY category,
-    CASE season WHEN 'Spring' THEN 1 WHEN 'Summer' THEN 2 WHEN 'Fall' THEN 3 ELSE 4 END;
+     -- 合并Web源
+     SELECT STR_TO_DATE(o.order_date, '%m/%d/%Y'), oi.quantity, oi.line_total, p.category
+     FROM web.orders o
+     JOIN web.order_items oi ON o.order_id = oi.order_id
+     JOIN web.products p ON oi.product_id = p.product_id
+     WHERE o.status = 'completed'
+    ) as unified_data
+GROUP BY p.category, year, month, day;
 ```
 
 ---
 
-## 初始化脚本
+## 索引策略
 
-### 样本数据插入
+### App源 (ecommerce_source_app)
 
-```sql
--- 插入用户样本数据
-INSERT INTO users (name, email, city, register_date) VALUES
-('张三', 'zhangsan@example.com', '北京', '2023-01-15'),
-('李四', 'lisi@example.com', '上海', '2023-02-20'),
-('王五', 'wangwu@example.com', '深圳', '2023-03-10');
+- `orders(order_date)` - 时间序列查询
+- `order_items(order_id, product_id)` - 订单明细查询
+- `products(category)` - 分类统计
 
--- 插入商品样本数据
-INSERT INTO products (name, category, price, cost, brand) VALUES
-('iPhone 14 Pro', 'Electronics', 7999.00, 5000.00, 'Apple'),
-('华为 Mate 50', 'Electronics', 4999.00, 3000.00, 'Huawei'),
-('南孚电池 4节', 'Accessories', 19.99, 8.00, '南孚'),
-('苹果笔记本', 'Electronics', 12999.00, 8000.00, 'Apple'),
-('小米手环6', 'Wearables', 249.00, 100.00, 'Xiaomi');
+### Web源 (ecommerce_source_web)
 
--- 插入订单样本数据
--- 注意：需要根据实际user_id和product_id调整
-```
+- `orders(order_date)` - 时间序列查询
+- `orders(order_no)` - 订单号查询
+- `product_reviews(rating)` - 评分排序
 
----
+### 仓库 (ecommerce_warehouse)
 
-## 数据库连接配置（Spring Boot 多数据源）
-
-### application.yml配置示例
-
-```yaml
-spring:
-  application:
-    name: ecommerce-warehouse-demo
-
-  # 多数据源配置
-  datasource:
-    # 业务数据源1 (ecommerce_source_1) - 分店1
-    primary:
-      driver-class-name: com.mysql.cj.jdbc.Driver
-      url: ${SPRING_DATASOURCE_PRIMARY_URL:jdbc:mysql://localhost:3306/ecommerce_source_1?useSSL=false&serverTimezone=UTC&characterEncoding=utf8mb4}
-      username: ${SPRING_DATASOURCE_PRIMARY_USERNAME:root}
-      password: ${SPRING_DATASOURCE_PRIMARY_PASSWORD:root}
-      type: com.zaxxer.hikari.HikariDataSource
-      hikari:
-        maximum-pool-size: 10
-        minimum-idle: 5
-
-    # 业务数据源2 (ecommerce_source_2) - 分店2
-    warehouse:
-      driver-class-name: com.mysql.cj.jdbc.Driver
-      url: ${SPRING_DATASOURCE_WAREHOUSE_URL:jdbc:mysql://localhost:3306/ecommerce_source_2?useSSL=false&serverTimezone=UTC&characterEncoding=utf8mb4}
-      username: ${SPRING_DATASOURCE_WAREHOUSE_USERNAME:root}
-      password: ${SPRING_DATASOURCE_WAREHOUSE_PASSWORD:root}
-      type: com.zaxxer.hikari.HikariDataSource
-      hikari:
-        maximum-pool-size: 10
-        minimum-idle: 5
-
-    # 数据仓库 (ecommerce_warehouse)
-    warehouse2:
-      driver-class-name: com.mysql.cj.jdbc.Driver
-      url: ${SPRING_DATASOURCE_WAREHOUSE2_URL:jdbc:mysql://localhost:3306/ecommerce_warehouse?useSSL=false&serverTimezone=UTC&characterEncoding=utf8mb4}
-      username: ${SPRING_DATASOURCE_WAREHOUSE2_USERNAME:root}
-      password: ${SPRING_DATASOURCE_WAREHOUSE2_PASSWORD:root}
-      type: com.zaxxer.hikari.HikariDataSource
-
-mybatis-plus:
-  mapper-locations: classpath*:/mapper/**/*.xml
-  type-aliases-package: com.example.entity
-  configuration:
-    map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-```
-
-### Docker Compose环境变量
-
-```yaml
-environment:
-  # 数据源1 (分店1)
-  SPRING_DATASOURCE_PRIMARY_URL: jdbc:mysql://mysql:3306/ecommerce_source_1?useSSL=false&serverTimezone=UTC&characterEncoding=utf8mb4
-  SPRING_DATASOURCE_PRIMARY_USERNAME: root
-  SPRING_DATASOURCE_PRIMARY_PASSWORD: root
-
-  # 数据源2 (分店2)
-  SPRING_DATASOURCE_WAREHOUSE_URL: jdbc:mysql://mysql:3306/ecommerce_source_2?useSSL=false&serverTimezone=UTC&characterEncoding=utf8mb4
-  SPRING_DATASOURCE_WAREHOUSE_USERNAME: root
-  SPRING_DATASOURCE_WAREHOUSE_PASSWORD: root
-
-  # 数据仓库
-  SPRING_DATASOURCE_WAREHOUSE2_URL: jdbc:mysql://mysql:3306/ecommerce_warehouse?useSSL=false&serverTimezone=UTC&characterEncoding=utf8mb4
-  SPRING_DATASOURCE_WAREHOUSE2_USERNAME: root
-  SPRING_DATASOURCE_WAREHOUSE2_PASSWORD: root
-```
-
----
-
-## 数据初始化脚本
-
-### SQL脚本清单
-
-| 文件             | 用途                             | 顺序 |
-| ---------------- | -------------------------------- | ---- |
-| source_db.sql    | 创建source_1和source_2两个业务库 | 1    |
-| warehouse_db.sql | 创建warehouse数据仓库库          | 2    |
-| sample_data.sql  | 向source_1和source_2插入示例数据 | 3    |
-
-### Docker自动初始化
-
-在Docker Compose启动时，MySQL容器会自动执行这些脚本：
-
-```yaml
-volumes:
-  - ./backend/sql/source_db.sql:/docker-entrypoint-initdb.d/01-source_db.sql
-  - ./backend/sql/warehouse_db.sql:/docker-entrypoint-initdb.d/02-warehouse_db.sql
-  - ./backend/sql/sample_data.sql:/docker-entrypoint-initdb.d/03-sample_data.sql
-```
-
-数字前缀（01, 02, 03）确保脚本按顺序执行。
-
----
-
-## 数据库设计总结
-
-| 指标         | source_1    | source_2    | warehouse |
-| ------------ | ----------- | ----------- | --------- |
-| **用途**     | 分店1业务库 | 分店2业务库 | 数据仓库  |
-| **表数**     | 6张         | 6张         | 5张       |
-| **用户**     | 3个         | 3个         | -         |
-| **商品**     | 4个         | 4个         | -         |
-| **订单**     | 4个         | 4个         | -         |
-| **数据来源** | 独立录入    | 独立录入    | UNION汇聚 |
-| **更新频率** | 实时        | 实时        | 定时汇聚  |
-
----
-
-## 关键设计原则
-
-1. **模式一致性**: source_1和source_2采用完全相同的表结构
-2. **数据标记**: warehouse中的表包含source_flag字段标记数据来源
-3. **独立性**: 两个源库可独立运营，互不影响
-4. **可溯源**: 所有汇聚数据都可追溯到原始源库
-5. **可扩展性**: 新增数据源只需按照相同模式创建新库
-
----
-
-## 初始化脚本位置
+- `fact_sales_by_category_time(category, year, month, day)` - 多维度聚合
+- `fact_top_rated_products(avg_rating DESC)` - 排行榜查询

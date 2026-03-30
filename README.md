@@ -1,6 +1,6 @@
-# � 电商数据仓库 Docker多源库Demo
+# 🚀 电商数据仓库 - 多渠道数据融合
 
-> 一个完整的电商多源库数据汇聚系统 - Docker一键启动，包含双源库+仓库库+Spring Boot后端+Vue前端
+> 完整的多渠道电商数据仓库系统 - Docker一键启动，融合App和Web两个渠道数据+分析仓库+Spring Boot后端+Vue前端
 
 [![Docker](https://img.shields.io/badge/Deploy-Docker%20Compose-2496ED?logo=docker)]()
 [![Language](https://img.shields.io/badge/Language-Java%2011%2B-orange)]()
@@ -11,13 +11,13 @@
 
 ## 🎯 项目概览
 
-这是一个**完整的多源库数据仓库系统**：
+这是一个**完整的多渠道数据融合系统**，支持两个完全不同的业务数据源：
 
-- ✅ **多源库架构** - ecommerce_source_1 + ecommerce_source_2 + warehouse
-- ✅ **Docker部署** - 一键启动所有服务（MySQL、Java后端、Vue前端）
-- ✅ **数据汇聚** - 使用UNION查询从两个源库汇聚数据到仓库库
-- ✅ **数据分析** - 5大核心分析场景 + 10张分析表
-- ✅ **完整代码** - 从SQL到API到UI，生产就绪
+- ✅ **多渠道架构** - ecommerce_source_app (App渠道) + ecommerce_source_web (Web渠道) + ecommerce_warehouse (分析库)
+- ✅ **异构数据融合** - App系统使用order_id(INT, yyyy-MM-dd)，Web系统使用order_no(VARCHAR, MM/dd/yyyy)，自动转换和统一
+- ✅ **Docker一键部署** - 一键启动所有服务（MySQL、Java后端、Vue前端）
+- ✅ **数据分析** - 2大核心分析场景：商品销量分析 + 评价排行分析
+- ✅ **完整代码** - 从SQL到ETL到API到UI，生产就绪
 
 ### ⚡ 快速启动
 
@@ -33,13 +33,12 @@ MySQL:     localhost:3306 (root/root)
 
 ### 核心功能
 
-| #   | 功能         | 说明                            |
-| --- | ------------ | ------------------------------- |
-| 1️⃣  | 热销商品分析 | TOP商品（按销量/评分/综合评分） |
-| 2️⃣  | 季节销量分析 | 不同类别在不同季节的销量        |
-| 3️⃣  | 平均订单价值 | AOV日周月维度分析               |
-| 4️⃣  | 商品退货率   | 商品/类别/整体退货率统计        |
-| 5️⃣  | KPI日报      | 销售额、订单数、人均消费等      |
+| #   | 功能         | 说明                                                   |
+| --- | ------------ | ------------------------------------------------------ |
+| 1️⃣  | 商品销量分析 | 按商品分类和时间维度统计销量和销售额（支持热力图展示） |
+| 2️⃣  | Top商品排行  | 按平均评分和评论数统计Top5商品排行榜                   |
+| 🔄  | 异构数据融合 | 自动处理App/Web数据格式差异（字段名、日期格式）        |
+| 📊  | 可视化仪表板 | 交互式图表展示多维度分析结果                           |
 
 ---
 
@@ -67,9 +66,10 @@ ecommerce_data_warehouse/
 │   │   └── resources/
 │   │       └── application.yml      # 多数据源配置
 │   └── sql/
-│       ├── source_db.sql            # 双源库DDL (source_1和source_2)
-│       ├── warehouse_db.sql         # 仓库库DDL (warehouse)
-│       └── sample_data.sql          # 示例数据 (双源库)
+       ├── source_app.sql             # App数据源DDL
+       ├── source_web.sql             # Web数据源DDL
+       ├── warehouse_db.sql           # 分析库DDL
+       └── sample_data.sql            # 示例数据
 │
 ├── frontend/                    # Vue前端
 │   ├── Dockerfile
@@ -136,9 +136,9 @@ docker-compose ps
 
 **✅ 第一次启动会自动**:
 
-- 创建3个MySQL数据库 (source_1, source_2, warehouse)
+- 创建3个MySQL数据库 (ecommerce_source_app, ecommerce_source_web, ecommerce_warehouse)
 - 执行SQL初始化脚本
-- 插入示例数据
+- 插入App/Web两个渠道的示例数据
 - 启动Spring Boot后端
 - 启动Vue前端
 
@@ -147,21 +147,21 @@ docker-compose ps
 ## 📊 系统架构
 
 ```
-┌─────────────────────────────────────┐
-│        Docker Compose Network        │
-├─────────────────────────────────────┤
-│                                     │
-│  ┌──────────┐  ┌──────────┐       │
-│  │ MySQL    │  │ backend  │  ┌───┐│
-│  │ 3306     │  │ 8080     │  │UI ││
-│  │          │  │          │  │57│
-│  │source_1  │◄─┤ Spring   │◄─┤3 ││
-│  │source_2  │  │ Boot     │  │  ││
-│  │warehouse │  │          │  │V  ││
-│  │          │  │Swagger   │  │ue │
-│  └──────────┘  └──────────┘  └───┘
-│                                     │
-└─────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│         Docker Compose Network               │
+├──────────────────────────────────────────────┤
+│                                              │
+│  ┌──────────────┐  ┌──────────┐  ┌────────┐│
+│  │    MySQL     │  │ backend  │  │ Vue UI ││
+│  │   3306       │  │  8080    │  │ 5173   ││
+│  │              │  │          │  │        ││
+│  │  App源 ┐     │  │ Spring   │◄─┤ Charts ││
+│  │  Web源 ├──────┤ Boot      │  │        ││
+│  │ Warehouse┘   │  │   ETL    │  │ Tables ││
+│  │              │  │ Swagger  │  │        ││
+│  └──────────────┘  └──────────┘  └────────┘│
+│                                              │
+└──────────────────────────────────────────────┘
 ```
 
 ---
@@ -209,7 +209,9 @@ docker-compose ps
 
 ```bash
 docker-compose exec mysql mysql -u root -proot
-mysql> USE ecommerce_source_1;
+mysql> USE ecommerce_source_app;    # 查看App渠道数据
+mysql> SELECT * FROM orders;
+mysql> USE ecommerce_source_web;    # 查看Web渠道数据
 mysql> SELECT * FROM orders;
 ```
 
