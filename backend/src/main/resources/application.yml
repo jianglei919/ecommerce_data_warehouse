@@ -2,6 +2,10 @@ spring:
   application:
     name: ecommerce-warehouse-demo
 
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
   # 多数据源配置
   datasource:
     # 业务数据源1 (ecommerce_source_1)

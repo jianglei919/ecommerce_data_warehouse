@@ -8,14 +8,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
 import javax.sql.DataSource;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * 多数据源配置
- * 配置两个数据库：
- * 1. primary - 业务原始数据库 (ecommerce_source)
- * 2. warehouse - 分析数据库 (ecommerce_warehouse)
+ * 配置三个数据库：
+ * 1. primary - 业务源库1 (ecommerce_source_1)
+ * 2. warehouse - 业务源库2 (ecommerce_source_2)
+ * 3. warehouse2 - 数据仓库 (ecommerce_warehouse)
  */
 @Configuration
 public class DataSourceConfig {
@@ -39,19 +38,25 @@ public class DataSourceConfig {
     }
 
     /**
+     * 数据仓库数据源
+     */
+    @Bean
+    @ConfigurationProperties(prefix = "spring.datasource.warehouse2")
+    public DataSource warehouse2DataSource() {
+        return DataSourceBuilder.create().build();
+    }
+
+    /**
      * 动态数据源（默认为primary）
      */
     @Bean
     @Primary
     public DataSource dynamicDataSource() {
         DynamicRoutingDataSource dynamicRoutingDataSource = new DynamicRoutingDataSource();
-
-        Map<String, DataSource> dataSourceMap = new HashMap<>();
-        dataSourceMap.put("primary", primaryDataSource());
-        dataSourceMap.put("warehouse", warehouseDataSource());
-
-        dynamicRoutingDataSource.setDataSources(dataSourceMap);
-        dynamicRoutingDataSource.setDefaultDataSource(primaryDataSource());
+        dynamicRoutingDataSource.addDataSource("primary", primaryDataSource());
+        dynamicRoutingDataSource.addDataSource("warehouse", warehouseDataSource());
+        dynamicRoutingDataSource.addDataSource("warehouse2", warehouse2DataSource());
+        dynamicRoutingDataSource.setPrimary("primary");
 
         return dynamicRoutingDataSource;
     }
