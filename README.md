@@ -1,90 +1,274 @@
-# 📊 电商数据仓库 Java Demo 项目
+# � 电商数据仓库 Docker多源库Demo
 
-> 一个完整的电商数据仓库演示系统 - 包含数据库设计、Java后端API、Vue前端可视化
+> 一个完整的电商多源库数据汇聚系统 - Docker一键启动，包含双源库+仓库库+Spring Boot后端+Vue前端
 
+[![Docker](https://img.shields.io/badge/Deploy-Docker%20Compose-2496ED?logo=docker)]()
 [![Language](https://img.shields.io/badge/Language-Java%2011%2B-orange)]()
 [![Database](https://img.shields.io/badge/Database-MySQL%208.0-blue)]()
 [![Frontend](https://img.shields.io/badge/Frontend-Vue.js%203-green)]()
-[![License](https://img.shields.io/badge/License-MIT-yellow)]()
 
 ---
 
 ## 🎯 项目概览
 
-这是一个**简化但完整**的电商数据仓库系统，用来演示：
+这是一个**完整的多源库数据仓库系统**：
 
-- ✅ **数据库设计** - 业务库+分析库、维度表、事实表
-- ✅ **数据分析** - 5大核心分析场景
-- ✅ **Java后端** - Spring Boot + MyBatis Plus + 多数据源
-- ✅ **前端可视化** - Vue.js + ECharts 仪表板
-- ✅ **完整代码** - 从建表到API到UI，一应俱全
+- ✅ **多源库架构** - ecommerce_source_1 + ecommerce_source_2 + warehouse
+- ✅ **Docker部署** - 一键启动所有服务（MySQL、Java后端、Vue前端）
+- ✅ **数据汇聚** - 使用UNION查询从两个源库汇聚数据到仓库库
+- ✅ **数据分析** - 5大核心分析场景 + 10张分析表
+- ✅ **完整代码** - 从SQL到API到UI，生产就绪
+
+### ⚡ 快速启动
+
+```bash
+# 一键启动所有服务
+docker-compose up -d
+
+# 访问应用
+前端仪表板: http://localhost:5173
+API文档:   http://localhost:8080/swagger-ui.html
+MySQL:     localhost:3306 (root/root)
+```
 
 ### 核心功能
 
-| #   | 功能         | 说明                           |
-| --- | ------------ | ------------------------------ |
-| 1️⃣  | 热销商品分析 | TOP 10（按销量/评分/综合评分） |
-| 2️⃣  | 季节销量分析 | 不同类别在不同季节的销量统计   |
-| 3️⃣  | 平均订单价值 | AOV 日/周/月维度分析           |
-| 4️⃣  | 商品退货率   | 商品/类别/整体退货率统计       |
-| 5️⃣  | KPI日报      | 销售额、订单数、人均消费等     |
+| #   | 功能         | 说明                            |
+| --- | ------------ | ------------------------------- |
+| 1️⃣  | 热销商品分析 | TOP商品（按销量/评分/综合评分） |
+| 2️⃣  | 季节销量分析 | 不同类别在不同季节的销量        |
+| 3️⃣  | 平均订单价值 | AOV日周月维度分析               |
+| 4️⃣  | 商品退货率   | 商品/类别/整体退货率统计        |
+| 5️⃣  | KPI日报      | 销售额、订单数、人均消费等      |
 
 ---
 
 ## 📁 项目结构
 
 ```
-ecommerce-warehouse-demo/
-├── 📖 README.md (本文件)
+ecommerce_data_warehouse/
+├── 🐳 docker-compose.yml        # Docker编排配置
+├── 📖 DOCKER_QUICKSTART.md      # Docker启动指南⭐
+├── 📖 PROJECT_OVERVIEW.md       # 项目详细说明⭐
+├── 📖 DATABASE_DESIGN.md        # 数据库设计⭐
 │
-├── 📄 DEMO_PROJECT_SUMMARY.md              ← 从这里开始！总体概览
-├── 📄 DEMO_REQUIREMENTS.md                 ← 详细需求说明
-├── 📄 DEMO_DATABASE_DESIGN.md              ← 数据库设计（2个库，11张表）
-├── 📄 DEMO_JAVA_ARCHITECTURE.md            ← Java后端架构（7个API）
-├── 📄 DEMO_FRONTEND_DESIGN.md              ← 前端设计（5个图表组件）
-├── 📄 DEMO_QUICK_START.md                  ← 快速开始指南（5步启动）
-│
-├── 📁 backend/                    # Java后端
-│   ├── pom.xml                   # Maven配置
-│   ├── src/main/java/com/example/
-│   │   ├── config/               # 多数据源配置
-│   │   ├── controller/           # API控制器
-│   │   ├── service/              # 业务逻辑
-│   │   ├── mapper/               # 数据访问
-│   │   ├── entity/               # 实体类
-│   │   ├── dto/                  # 数据传输对象
-│   │   └── Application.java
-│   ├── src/main/resources/
-│   │   ├── application.yml       # Spring Boot配置
-│   │   └── mapper/               # MyBatis XML
+├── backend/                     # Java后端 (Spring Boot)
+│   ├── Dockerfile
+│   ├── pom.xml
+│   ├── src/main/
+│   │   ├── java/com/warehouse/
+│   │   │   ├── Application.java
+│   │   │   ├── config/DataSourceConfig.java      # 多数据源配置
+│   │   │   ├── entity/              # 实体类 (5个)
+│   │   │   ├── dto/                 # DTO类 (4个)
+│   │   │   ├── mapper/              # Mapper (3个)
+│   │   │   ├── service/             # 服务 (1个)
+│   │   │   └── controller/          # 控制器 (1个)
+│   │   └── resources/
+│   │       └── application.yml      # 多数据源配置
 │   └── sql/
-│       ├── source_db.sql         # 业务库建表脚本
-│       ├── warehouse_db.sql      # 分析库建表脚本
-│       └── sample_data.sql       # 样本数据
+│       ├── source_db.sql            # 双源库DDL (source_1和source_2)
+│       ├── warehouse_db.sql         # 仓库库DDL (warehouse)
+│       └── sample_data.sql          # 示例数据 (双源库)
 │
-├── 📁 frontend/                   # Vue前端
-│   ├── package.json              # npm配置
-│   ├── vite.config.js            # Vite构建配置
+├── frontend/                    # Vue前端
+│   ├── Dockerfile
+│   ├── package.json
+│   ├── vite.config.js
+│   ├── index.html
 │   ├── src/
-│   │   ├── api/                  # API调用
-│   │   ├── pages/                # 页面组件
-│   │   ├── components/           # 重用组件
-│   │   │   ├── HotProductChart.vue       # 热销商品图表
-│   │   │   ├── SeasonSalesChart.vue      # 季节销售图表
-│   │   │   ├── AOVChart.vue              # AOV趋势图表
-│   │   │   ├── ReturnRateChart.vue       # 退货率图表
-│   │   │   └── KPICard.vue               # KPI卡片
+│   │   ├── main.js
+│   │   ├── router/
+│   │   ├── api/client.js
 │   │   ├── App.vue
-│   │   └── main.js
-│   └── public/
+│   │   └── components/         # 5个图表组件
+│   └── dist/
 │
-├── 📁 docs/                       # 文档目录
-│   ├── API文档.md
-│   ├── 部署说明.md
-│   └── 开发指南.md
-│
-└── 🐳 docker-compose.yml          # Docker一键启动
+├── .git/
+├── .gitignore
+└── docs/                       # 其他文档
 ```
+
+├── .git/
+├── .gitignore
+└── docs/ # 其他文档
+
+````
+
+---
+
+## 🛠️ 技术栈
+
+### 后端 (Backend)
+- **框架**: Spring Boot 2.7.0
+- **ORM**: MyBatis Plus 3.5.1
+- **多数据源**: DataSource路由 (3个库)
+- **编译**: Maven 3.8.1
+- **API文档**: Swagger 3.0
+
+### 前端 (Frontend)
+- **框架**: Vue.js 3.3
+- **构建**: Vite
+- **UI库**: Element Plus
+- **图表**: ECharts
+
+### 基础设施
+- **容器**: Docker & Docker Compose
+- **数据库**: MySQL 8.0
+- **编排**: Docker Compose
+
+---
+
+## 🚀 快速开始 (5分钟)
+
+```bash
+# 1. 启动所有服务
+docker-compose up -d
+
+# 2. 查看状态
+docker-compose ps
+
+# 3. 访问应用
+# 前端: http://localhost:5173
+# API: http://localhost:8080/swagger-ui.html
+# MySQL: localhost:3306 (root/root)
+````
+
+**✅ 第一次启动会自动**:
+
+- 创建3个MySQL数据库 (source_1, source_2, warehouse)
+- 执行SQL初始化脚本
+- 插入示例数据
+- 启动Spring Boot后端
+- 启动Vue前端
+
+---
+
+## 📊 系统架构
+
+```
+┌─────────────────────────────────────┐
+│        Docker Compose Network        │
+├─────────────────────────────────────┤
+│                                     │
+│  ┌──────────┐  ┌──────────┐       │
+│  │ MySQL    │  │ backend  │  ┌───┐│
+│  │ 3306     │  │ 8080     │  │UI ││
+│  │          │  │          │  │57│
+│  │source_1  │◄─┤ Spring   │◄─┤3 ││
+│  │source_2  │  │ Boot     │  │  ││
+│  │warehouse │  │          │  │V  ││
+│  │          │  │Swagger   │  │ue │
+│  └──────────┘  └──────────┘  └───┘
+│                                     │
+└─────────────────────────────────────┘
+```
+
+---
+
+## 📚 文档导航
+
+| 文档                                         | 推荐人群         |
+| -------------------------------------------- | ---------------- |
+| [DOCKER_QUICKSTART.md](DOCKER_QUICKSTART.md) | 所有人⭐         |
+| [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)   | 开发者           |
+| [DATABASE_DESIGN.md](DATABASE_DESIGN.md)     | DBA/数据库工程师 |
+| [JAVA_ARCHITECTURE.md](JAVA_ARCHITECTURE.md) | Java开发         |
+| [FRONTEND_DESIGN.md](FRONTEND_DESIGN.md)     | 前端开发         |
+
+---
+
+## 🎓 学习路径
+
+### 路径1: 快速体验 (30分钟)
+
+1. 启动Docker: `docker-compose up -d`
+2. 访问前端: http://localhost:5173
+3. 查看图表和数据
+
+### 路径2: 开发学习 (4小时)
+
+1. 阅读 [DOCKER_QUICKSTART.md](DOCKER_QUICKSTART.md) (20分钟)
+2. 阅读 [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) (30分钟)
+3. 学习 [DATABASE_DESIGN.md](DATABASE_DESIGN.md) (1小时)
+4. 学习 [JAVA_ARCHITECTURE.md](JAVA_ARCHITECTURE.md) (1小时)
+5. 学习 [FRONTEND_DESIGN.md](FRONTEND_DESIGN.md) (1小时)
+
+### 路径3: 深度定制 (2-3天)
+
+1. 修改数据库模式
+2. 添加新的API端点
+3. 创建新的前端图表
+4. 优化性能和部署
+
+---
+
+## ❓ 常见问题
+
+### Q: 如何查看MySQL中的数据?
+
+```bash
+docker-compose exec mysql mysql -u root -proot
+mysql> USE ecommerce_source_1;
+mysql> SELECT * FROM orders;
+```
+
+### Q: 如何查看后端日志?
+
+```bash
+docker-compose logs backend -f
+```
+
+### Q: 如何重新初始化数据库?
+
+```bash
+docker-compose down -v
+docker-compose up -d
+```
+
+### Q: 如何修改代码并重新部署?
+
+```bash
+# 修改代码后...
+docker-compose restart backend
+docker-compose restart frontend
+```
+
+更多常见问题请见: [DOCKER_QUICKSTART.md#常见问题](DOCKER_QUICKSTART.md#常见问题)
+
+---
+
+## 📈 项目统计
+
+│ └── sql/
+│ ├── source_db.sql # 业务库建表脚本
+│ ├── warehouse_db.sql # 分析库建表脚本
+│ └── sample_data.sql # 样本数据
+│
+├── 📁 frontend/ # Vue前端
+│ ├── package.json # npm配置
+│ ├── vite.config.js # Vite构建配置
+│ ├── src/
+│ │ ├── api/ # API调用
+│ │ ├── pages/ # 页面组件
+│ │ ├── components/ # 重用组件
+│ │ │ ├── HotProductChart.vue # 热销商品图表
+│ │ │ ├── SeasonSalesChart.vue # 季节销售图表
+│ │ │ ├── AOVChart.vue # AOV趋势图表
+│ │ │ ├── ReturnRateChart.vue # 退货率图表
+│ │ │ └── KPICard.vue # KPI卡片
+│ │ ├── App.vue
+│ │ └── main.js
+│ └── public/
+│
+├── 📁 docs/ # 文档目录
+│ ├── API文档.md
+│ ├── 部署说明.md
+│ └── 开发指南.md
+│
+└── 🐳 docker-compose.yml # Docker一键启动
+
+````
 
 ---
 
@@ -102,7 +286,7 @@ ecommerce-warehouse-demo/
 mysql -u root -p
 CREATE DATABASE ecommerce_source CHARACTER SET utf8mb4;
 CREATE DATABASE ecommerce_warehouse CHARACTER SET utf8mb4;
-```
+````
 
 ### Step 2️⃣: 执行建表脚本
 

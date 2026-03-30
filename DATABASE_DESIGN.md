@@ -1,6 +1,47 @@
-# Java Demo 项目 - 数据库设计
+# 📊 数据库设计 - 多源库汇聚架构
 
-## 数据库1：业务原始数据库 (ecommerce_source)
+## 系统架构概览
+
+```
+┌─────────────────────────────────────────────────────┐
+│           电商数据仓库系统架构                        │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  ┌──────────────┐      ┌──────────────┐            │
+│  │ source_1库   │      │ source_2库   │            │
+│  │  (分店1)     │      │  (分店2)     │            │
+│  │              │      │              │            │
+│  │ · users      │      │ · users      │            │
+│  │ · products   │      │ · products   │            │
+│  │ · orders     │      │ · orders     │            │
+│  │ · ...        │      │ · ...        │            │
+│  └──────┬───────┘      └───────┬──────┘            │
+│         │                      │                    │
+│         └──────────┬───────────┘                    │
+│                    │ ETL/UNION                      │
+│                    ▼                                │
+│        ┌──────────────────────┐                   │
+│        │  warehouse库         │                   │
+│        │   (数据仓库)         │                   │
+│        │                      │                   │
+│        │ · fact_sales         │                   │
+│        │ · dim_product_*      │                   │
+│        │ · fact_returns       │                   │
+│        │ · kpi_daily          │                   │
+│        └──────────────────────┘                   │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## 数据库1：业务源库1 (ecommerce_source_1)
+
+### 库的用途
+
+- 存储分店1（北京/上海/广州）的所有业务数据
+- 包含6张业务表
+- 与source_2完全相同的表结构（便于数据合并）
 
 ### 1. 用户表 (users)
 
@@ -16,6 +57,12 @@ CREATE TABLE users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
+
+**示例数据**:
+
+- 张三 (北京)
+- 李四 (上海)
+- 王五 (广州)
 
 ### 2. 商品表 (products)
 
@@ -111,7 +158,25 @@ CREATE TABLE returns (
 
 ---
 
-## 数据库2：分析数据仓库 (ecommerce_warehouse)
+## 数据库2：业务源库2 (ecommerce_source_2)
+
+### 库的用途
+
+- 存储分店2（深圳/杭州/成都）的所有业务数据
+- 包含6张业务表
+- 与source_1完全相同的表结构（便于数据合并）
+
+**示例数据**:
+
+- 赵六 (深圳)
+- 孙七 (杭州)
+- 周八 (成都)
+
+表结构与source_1完全一致：users、products、orders、order_items、product_reviews、returns
+
+---
+
+## 数据库3：分析数据仓库 (ecommerce_warehouse)
 
 ### 1. 销售事实表 (fact_sales)
 
@@ -364,31 +429,124 @@ INSERT INTO products (name, category, price, cost, brand) VALUES
 
 ---
 
-## 数据库连接配置（Spring Boot）
+## 数据库连接配置（Spring Boot 多数据源）
 
-### application.yml
+### application.yml配置示例
 
 ```yaml
 spring:
-  datasource:
-    # 主库（业务数据库）
-    primary:
-      url: jdbc:mysql://localhost:3306/ecommerce_source?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true&serverTimezone=Asia/Shanghai
-      username: root
-      password: 123456
-      driver-class-name: com.mysql.cj.jdbc.Driver
+  application:
+    name: ecommerce-warehouse-demo
 
-    # 从库（分析库）
-    warehouse:
-      url: jdbc:mysql://localhost:3306/ecommerce_warehouse?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true&serverTimezone=Asia/Shanghai
-      username: root
-      password: 123456
+  # 多数据源配置
+  datasource:
+    # 业务数据源1 (ecommerce_source_1) - 分店1
+    primary:
       driver-class-name: com.mysql.cj.jdbc.Driver
+      url: ${SPRING_DATASOURCE_PRIMARY_URL:jdbc:mysql://localhost:3306/ecommerce_source_1?useSSL=false&serverTimezone=UTC&characterEncoding=utf8mb4}
+      username: ${SPRING_DATASOURCE_PRIMARY_USERNAME:root}
+      password: ${SPRING_DATASOURCE_PRIMARY_PASSWORD:root}
+      type: com.zaxxer.hikari.HikariDataSource
+      hikari:
+        maximum-pool-size: 10
+        minimum-idle: 5
+
+    # 业务数据源2 (ecommerce_source_2) - 分店2
+    warehouse:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: ${SPRING_DATASOURCE_WAREHOUSE_URL:jdbc:mysql://localhost:3306/ecommerce_source_2?useSSL=false&serverTimezone=UTC&characterEncoding=utf8mb4}
+      username: ${SPRING_DATASOURCE_WAREHOUSE_USERNAME:root}
+      password: ${SPRING_DATASOURCE_WAREHOUSE_PASSWORD:root}
+      type: com.zaxxer.hikari.HikariDataSource
+      hikari:
+        maximum-pool-size: 10
+        minimum-idle: 5
+
+    # 数据仓库 (ecommerce_warehouse)
+    warehouse2:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: ${SPRING_DATASOURCE_WAREHOUSE2_URL:jdbc:mysql://localhost:3306/ecommerce_warehouse?useSSL=false&serverTimezone=UTC&characterEncoding=utf8mb4}
+      username: ${SPRING_DATASOURCE_WAREHOUSE2_USERNAME:root}
+      password: ${SPRING_DATASOURCE_WAREHOUSE2_PASSWORD:root}
+      type: com.zaxxer.hikari.HikariDataSource
 
 mybatis-plus:
-  mapper-locations: classpath:mapper/*.xml
+  mapper-locations: classpath*:/mapper/**/*.xml
   type-aliases-package: com.example.entity
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 ```
+
+### Docker Compose环境变量
+
+```yaml
+environment:
+  # 数据源1 (分店1)
+  SPRING_DATASOURCE_PRIMARY_URL: jdbc:mysql://mysql:3306/ecommerce_source_1?useSSL=false&serverTimezone=UTC&characterEncoding=utf8mb4
+  SPRING_DATASOURCE_PRIMARY_USERNAME: root
+  SPRING_DATASOURCE_PRIMARY_PASSWORD: root
+
+  # 数据源2 (分店2)
+  SPRING_DATASOURCE_WAREHOUSE_URL: jdbc:mysql://mysql:3306/ecommerce_source_2?useSSL=false&serverTimezone=UTC&characterEncoding=utf8mb4
+  SPRING_DATASOURCE_WAREHOUSE_USERNAME: root
+  SPRING_DATASOURCE_WAREHOUSE_PASSWORD: root
+
+  # 数据仓库
+  SPRING_DATASOURCE_WAREHOUSE2_URL: jdbc:mysql://mysql:3306/ecommerce_warehouse?useSSL=false&serverTimezone=UTC&characterEncoding=utf8mb4
+  SPRING_DATASOURCE_WAREHOUSE2_USERNAME: root
+  SPRING_DATASOURCE_WAREHOUSE2_PASSWORD: root
+```
+
+---
+
+## 数据初始化脚本
+
+### SQL脚本清单
+
+| 文件             | 用途                             | 顺序 |
+| ---------------- | -------------------------------- | ---- |
+| source_db.sql    | 创建source_1和source_2两个业务库 | 1    |
+| warehouse_db.sql | 创建warehouse数据仓库库          | 2    |
+| sample_data.sql  | 向source_1和source_2插入示例数据 | 3    |
+
+### Docker自动初始化
+
+在Docker Compose启动时，MySQL容器会自动执行这些脚本：
+
+```yaml
+volumes:
+  - ./backend/sql/source_db.sql:/docker-entrypoint-initdb.d/01-source_db.sql
+  - ./backend/sql/warehouse_db.sql:/docker-entrypoint-initdb.d/02-warehouse_db.sql
+  - ./backend/sql/sample_data.sql:/docker-entrypoint-initdb.d/03-sample_data.sql
+```
+
+数字前缀（01, 02, 03）确保脚本按顺序执行。
+
+---
+
+## 数据库设计总结
+
+| 指标         | source_1    | source_2    | warehouse |
+| ------------ | ----------- | ----------- | --------- |
+| **用途**     | 分店1业务库 | 分店2业务库 | 数据仓库  |
+| **表数**     | 6张         | 6张         | 5张       |
+| **用户**     | 3个         | 3个         | -         |
+| **商品**     | 4个         | 4个         | -         |
+| **订单**     | 4个         | 4个         | -         |
+| **数据来源** | 独立录入    | 独立录入    | UNION汇聚 |
+| **更新频率** | 实时        | 实时        | 定时汇聚  |
+
+---
+
+## 关键设计原则
+
+1. **模式一致性**: source_1和source_2采用完全相同的表结构
+2. **数据标记**: warehouse中的表包含source_flag字段标记数据来源
+3. **独立性**: 两个源库可独立运营，互不影响
+4. **可溯源**: 所有汇聚数据都可追溯到原始源库
+5. **可扩展性**: 新增数据源只需按照相同模式创建新库
+
+---
+
+## 初始化脚本位置
