@@ -37,7 +37,7 @@ flowchart TB
     web_reviews --> clean
     clean --> fact_sales & fact_top
 
-    style clean fill:#FFD600
+    style clean fill:#FFD600,stroke-width:2px,stroke-dasharray: 2
     style source_app fill:#e3f2fd,stroke:transparent,stroke-width:2px,color:#FF6D00
     style source_web fill:#e3f2fd,stroke:transparent,stroke-width:2px,color:#AA00FF
     style etl fill:#f3e5f5,stroke:transparent,stroke-width:2px,color:#2962FF
