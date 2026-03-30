@@ -3,51 +3,39 @@
 ## 系统架构概览
 
 ```mermaid
-graph TB
-    subgraph app["Source Database 1<br/>(ecommerce_source_app)<br/>Mobile App System"]
-        direction LR
-        u1["users<br/>App Users"]
+graph LR
+    subgraph app["APP System"]
+        u1["users"]
         p1["products"]
-        o1["orders<br/>order_id INT<br/>yyyy-MM-dd"]
+        o1["orders<br/>order_id INT"]
         oi1["order_items"]
-        pr1["product_reviews"]
-        u1 ---|1:M| o1
-        p1 ---|1:M| oi1
-        o1 ---|1:M| oi1
-        p1 ---|1:M| pr1
+        pr1["reviews"]
     end
 
-    subgraph web["Source Database 2<br/>(ecommerce_source_web)<br/>Web Portal System"]
-        direction LR
-        u2["users<br/>Web Users"]
+    subgraph web["WEB System"]
+        u2["users"]
         p2["products"]
-        o2["orders<br/>order_no VARCHAR<br/>MM/dd/yyyy"]
+        o2["orders<br/>order_no VARCHAR"]
         oi2["order_items"]
-        pr2["product_reviews"]
-        u2 ---|1:M| o2
-        p2 ---|1:M| oi2
-        o2 ---|1:M| oi2
-        p2 ---|1:M| pr2
+        pr2["reviews"]
     end
 
-    subgraph etl["ETL Processing<br/>Data Transformation"]
-        direction LR
-        transform["Convert Formats<br/>- order_id: INT → VARCHAR<br/>- Date: MM/dd/yyyy → yyyy-MM-dd"]
+    subgraph etl["ETL Transform"]
+        transform["- INT to VARCHAR<br/>- Date format"]
     end
 
-    subgraph warehouse["Data Warehouse<br/>(ecommerce_warehouse)<br/>Unified Analytics"]
-        direction LR
-        fs["fact_sales_by_category_time"]
-        tr["fact_top_rated_products"]
+    subgraph warehouse["Warehouse"]
+        fs["fact_sales"]
+        tr["fact_products"]
     end
 
-    app -->|Extract| etl
-    web -->|Extract| etl
-    etl -->|Transform & Load| warehouse
+    app --> etl
+    web --> etl
+    etl --> warehouse
 
-    style app fill:#e1f5ff,stroke:#01579b,stroke-width:3px,color:#000
-    style web fill:#e8f5e9,stroke:#1b5e20,stroke-width:3px,color:#000
-    style warehouse fill:#fff3e0,stroke:#e65100,stroke-width:3px,color:#000
+    style app fill:#e1f5ff,stroke:#01579b,stroke-width:2px,color:#000
+    style web fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px,color:#000
+    style warehouse fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000
     style etl fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000
 ```
 

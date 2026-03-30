@@ -156,29 +156,29 @@ Product: Samsung Galaxy,  Category: Electronics, Avg Rating: 4.6, Reviews: 100
 
 ```mermaid
 graph LR
-    subgraph source["数据源层 (Source Layer)"]
-        app["ecommerce_source_app<br/>(App 渠道)<br/>order_id: INT<br/>date: yyyy-MM-dd"]
-        web["ecommerce_source_web<br/>(Web 渠道)<br/>order_no: VARCHAR<br/>date: MM/dd/yyyy"]
+    subgraph source["数据源"]
+        app["APP<br/>INT"]
+        web["WEB<br/>VARCHAR"]
     end
 
-    subgraph etl["ETL 处理层 (ETL Layer)"]
-        extract["数据提取<br/>Extract"]
-        transform["数据转换<br/>- 字段名统一<br/>- 日期格式转换<br/>- 类型转换<br/>- 数据验证"]
-        clean["数据清理<br/>- 去重<br/>- 数据校验<br/>- 异常处理"]
+    subgraph etl["ETL处理"]
+        extract["提取"]
+        transform["转换"]
+        clean["验证"]
     end
 
-    subgraph warehouse["数据仓库层 (Warehouse Layer)"]
-        sales["fact_sales_by_category_time<br/>(销量事实表)"]
-        top["fact_top_rated_products<br/>(商品评分表)"]
+    subgraph warehouse["数据仓库"]
+        sales["销量事实表"]
+        top["商品评分表"]
     end
 
-    subgraph analytics["分析查询层 (Analytics Layer)"]
-        query1["Query 1<br/>按分类+时间<br/>销量分析"]
-        query2["Query 2<br/>按评分<br/>Top商品排行"]
+    subgraph analytics["分析查询"]
+        query1["查询1"]
+        query2["查询2"]
     end
 
-    subgraph ui["前端展示层 (UI Layer)"]
-        chart1["热力图 & 柱状图"]
+    subgraph ui["前端展示"]
+        chart1["图表"]
         chart2["排行榜"]
     end
 

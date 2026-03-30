@@ -3,30 +3,30 @@
 ## System Architecture Diagram
 
 ```mermaid
-graph TB
-    subgraph source_app["ecommerce_source_app<br/>(App Channel Source System)"]
+graph LR
+    subgraph source_app["APP Source"]
         app_users["users"]
         app_products["products"]
-        app_orders["orders<br/>(order_id: INT)"]
+        app_orders["orders<br/>INT"]
         app_order_items["order_items"]
-        app_reviews["product_reviews"]
+        app_reviews["reviews"]
     end
 
-    subgraph source_web["ecommerce_source_web<br/>(Web Channel Source System)"]
+    subgraph source_web["WEB Source"]
         web_users["users"]
         web_products["products"]
-        web_orders["orders<br/>(order_no: VARCHAR)"]
+        web_orders["orders<br/>VARCHAR"]
         web_order_items["order_items"]
-        web_reviews["product_reviews"]
+        web_reviews["reviews"]
     end
 
-    subgraph etl["ETL Transformation Layer<br/>(Data Cleaning & Unification)"]
-        clean["Data Cleaning<br/>- Unify field names<br/>- Convert data types<br/>- Format dates<br/>- Validate data"]
+    subgraph etl["ETL Layer"]
+        clean["Transform &<br/>Unify"]
     end
 
-    subgraph warehouse["ecommerce_warehouse<br/>(Analytics Data Warehouse)"]
-        fact_sales["fact_sales_by_category_time<br/>(Sales Fact Table)"]
-        fact_top["fact_top_rated_products<br/>(Product Rating Table)"]
+    subgraph warehouse["Warehouse"]
+        fact_sales["fact_sales"]
+        fact_top["fact_products"]
     end
 
     app_users --> clean

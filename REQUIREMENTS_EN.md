@@ -156,30 +156,30 @@ Product: Samsung Galaxy,  Category: Electronics, Avg Rating: 4.6, Reviews: 100
 
 ```mermaid
 graph LR
-    subgraph source["Source Layer"]
-        app["ecommerce_source_app<br/>(App Channel)<br/>order_id: INT<br/>date: yyyy-MM-dd"]
-        web["ecommerce_source_web<br/>(Web Channel)<br/>order_no: VARCHAR<br/>date: MM/dd/yyyy"]
+    subgraph source["Source"]
+        app["APP<br/>INT"]
+        web["WEB<br/>VARCHAR"]
     end
 
-    subgraph etl["ETL Processing Layer"]
-        extract["Data Extract"]
-        transform["Data Transform<br/>- Unify field names<br/>- Convert date formats<br/>- Type conversion<br/>- Data validation"]
-        clean["Data Cleaning<br/>- Deduplication<br/>- Data verification<br/>- Exception handling"]
+    subgraph etl["ETL"]
+        extract["Extract"]
+        transform["Transform"]
+        clean["Validate"]
     end
 
-    subgraph warehouse["Data Warehouse Layer"]
-        sales["fact_sales_by_category_time<br/>(Sales Fact Table)"]
-        top["fact_top_rated_products<br/>(Product Rating Table)"]
+    subgraph warehouse["Warehouse"]
+        sales["Fact Sales"]
+        top["Top Products"]
     end
 
-    subgraph analytics["Analytics Query Layer"]
-        query1["Query 1<br/>Sales by Category+Time"]
-        query2["Query 2<br/>Top Product Ranking"]
+    subgraph analytics["Analytics"]
+        query1["Query 1"]
+        query2["Query 2"]
     end
 
-    subgraph ui["UI Presentation Layer"]
-        chart1["Heatmap & Bar Chart"]
-        chart2["Leaderboard"]
+    subgraph ui["UI"]
+        chart1["Charts"]
+        chart2["Board"]
     end
 
     app --> extract
