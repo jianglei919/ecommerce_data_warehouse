@@ -4,7 +4,7 @@
 
 ```mermaid
 graph TB
-    subgraph source_app["📱 ecommerce_source_app<br/>(App Channel Source System)"]
+    subgraph source_app["ecommerce_source_app<br/>(App Channel Source System)"]
         app_users["users"]
         app_products["products"]
         app_orders["orders<br/>(order_id: INT)"]
@@ -12,7 +12,7 @@ graph TB
         app_reviews["product_reviews"]
     end
 
-    subgraph source_web["🌐 ecommerce_source_web<br/>(Web Channel Source System)"]
+    subgraph source_web["ecommerce_source_web<br/>(Web Channel Source System)"]
         web_users["users"]
         web_products["products"]
         web_orders["orders<br/>(order_no: VARCHAR)"]
@@ -20,11 +20,11 @@ graph TB
         web_reviews["product_reviews"]
     end
 
-    subgraph etl["⚙️ ETL Transformation Layer<br/>(Data Cleaning & Unification)"]
+    subgraph etl["ETL Transformation Layer<br/>(Data Cleaning & Unification)"]
         clean["Data Cleaning<br/>- Unify field names<br/>- Convert data types<br/>- Format dates<br/>- Validate data"]
     end
 
-    subgraph warehouse["📈 ecommerce_warehouse<br/>(Analytics Data Warehouse)"]
+    subgraph warehouse["ecommerce_warehouse<br/>(Analytics Data Warehouse)"]
         fact_sales["fact_sales_by_category_time<br/>(Sales Fact Table)"]
         fact_top["fact_top_rated_products<br/>(Product Rating Table)"]
     end
@@ -56,11 +56,11 @@ graph TB
 
 **Challenge:** Two source systems use different data formats and field naming conventions.
 
-| Data Problem | App (source_app) | Web (source_web) | Solution |
-| --- | --- | --- | --- |
-| **Order ID Field Name** | order_id | order_no | Add `order_id` field in unified query; map both sources |
-| **Order ID Data Type Mismatch** | INT (e.g., 12345) | VARCHAR (e.g., "WEB-001") | Convert both to VARCHAR in warehouse |
-| **Order Date Format Mismatch** | yyyy-MM-dd | MM/dd/yyyy | Unify to yyyy-MM-dd in warehouse; use STR_TO_DATE() |
+| Data Problem                    | App (source_app)  | Web (source_web)          | Solution                                                |
+| ------------------------------- | ----------------- | ------------------------- | ------------------------------------------------------- |
+| **Order ID Field Name**         | order_id          | order_no                  | Add `order_id` field in unified query; map both sources |
+| **Order ID Data Type Mismatch** | INT (e.g., 12345) | VARCHAR (e.g., "WEB-001") | Convert both to VARCHAR in warehouse                    |
+| **Order Date Format Mismatch**  | yyyy-MM-dd        | MM/dd/yyyy                | Unify to yyyy-MM-dd in warehouse; use STR_TO_DATE()     |
 
 ---
 
@@ -341,7 +341,7 @@ CREATE TABLE fact_top_rated_products (
 
 ```sql
 -- Extract from: ecommerce_source_app
-SELECT 
+SELECT
     CAST(a.order_id AS CHAR) AS order_id,  -- Normalize to VARCHAR
     a.user_id,
     a.order_date,  -- Already in yyyy-MM-dd format
@@ -354,7 +354,7 @@ SELECT
 FROM ecommerce_source_app.orders a
 INNER JOIN ecommerce_source_app.order_items oi ON a.order_id = oi.order_id
 INNER JOIN ecommerce_source_app.products p ON oi.product_id = p.product_id
-LEFT JOIN ecommerce_source_app.product_reviews r ON p.product_id = r.product_id 
+LEFT JOIN ecommerce_source_app.product_reviews r ON p.product_id = r.product_id
     AND a.user_id = r.user_id
 WHERE a.status = 'completed'
     AND a.order_date >= '2024-01-01';
@@ -364,7 +364,7 @@ WHERE a.status = 'completed'
 
 ```sql
 -- Extract from: ecommerce_source_web
-SELECT 
+SELECT
     w.order_no AS order_id,  -- Already VARCHAR
     w.user_id,
     STR_TO_DATE(w.order_date, '%m/%d/%Y') AS order_date,  -- Convert MM/dd/yyyy → yyyy-MM-dd
@@ -377,7 +377,7 @@ SELECT
 FROM ecommerce_source_web.orders w
 INNER JOIN ecommerce_source_web.order_items oi ON w.order_no = oi.order_id
 INNER JOIN ecommerce_source_web.products p ON oi.product_id = p.product_id
-LEFT JOIN ecommerce_source_web.product_reviews r ON p.product_id = r.product_id 
+LEFT JOIN ecommerce_source_web.product_reviews r ON p.product_id = r.product_id
     AND w.user_id = r.user_id
 WHERE w.status = 'completed'
     AND STR_TO_DATE(w.order_date, '%m/%d/%Y') >= '2024-01-01';
@@ -389,7 +389,7 @@ WHERE w.status = 'completed'
 
 ```sql
 -- Unified data extraction from both sources
-SELECT 
+SELECT
     order_id,
     user_id,
     order_date,
@@ -401,7 +401,7 @@ SELECT
     source_channel
 FROM (
     -- App source
-    SELECT 
+    SELECT
         CAST(a.order_id AS CHAR) AS order_id,
         a.user_id,
         a.order_date,
@@ -414,14 +414,14 @@ FROM (
     FROM ecommerce_source_app.orders a
     INNER JOIN ecommerce_source_app.order_items oi ON a.order_id = oi.order_id
     INNER JOIN ecommerce_source_app.products p ON oi.product_id = p.product_id
-    LEFT JOIN ecommerce_source_app.product_reviews r ON p.product_id = r.product_id 
+    LEFT JOIN ecommerce_source_app.product_reviews r ON p.product_id = r.product_id
         AND a.user_id = r.user_id
     WHERE a.status = 'completed'
-    
+
     UNION ALL
-    
+
     -- Web source
-    SELECT 
+    SELECT
         w.order_no AS order_id,
         w.user_id,
         STR_TO_DATE(w.order_date, '%m/%d/%Y') AS order_date,
@@ -434,7 +434,7 @@ FROM (
     FROM ecommerce_source_web.orders w
     INNER JOIN ecommerce_source_web.order_items oi ON w.order_no = oi.order_id
     INNER JOIN ecommerce_source_web.products p ON oi.product_id = p.product_id
-    LEFT JOIN ecommerce_source_web.product_reviews r ON p.product_id = r.product_id 
+    LEFT JOIN ecommerce_source_web.product_reviews r ON p.product_id = r.product_id
         AND w.user_id = r.user_id
     WHERE w.status = 'completed'
 ) unified_data
@@ -446,9 +446,9 @@ ORDER BY order_date, source_channel;
 **Populate fact_sales_by_category_time:**
 
 ```sql
-INSERT INTO ecommerce_warehouse.fact_sales_by_category_time 
+INSERT INTO ecommerce_warehouse.fact_sales_by_category_time
 (category, year, month, day, total_quantity, total_sales_amount)
-SELECT 
+SELECT
     category,
     YEAR(order_date) AS year,
     MONTH(order_date) AS month,
@@ -467,9 +467,9 @@ ON DUPLICATE KEY UPDATE
 **Populate fact_top_rated_products:**
 
 ```sql
-INSERT INTO ecommerce_warehouse.fact_top_rated_products 
+INSERT INTO ecommerce_warehouse.fact_top_rated_products
 (product_id, product_name, category, year, month, day, avg_rating, review_count)
-SELECT 
+SELECT
     p.product_id,
     p.name AS product_name,
     p.category,
@@ -504,7 +504,7 @@ ON DUPLICATE KEY UPDATE
 ```sql
 -- Already defined in FOREIGN KEY constraints and table definitions
 -- Key indexes for common queries:
-ALTER TABLE ecommerce_source_app.orders 
+ALTER TABLE ecommerce_source_app.orders
 ADD KEY idx_user_order_date (user_id, order_date);
 
 ALTER TABLE ecommerce_source_app.products
@@ -517,7 +517,7 @@ ADD KEY idx_product_user (product_id, user_id);
 ### ecommerce_source_web - Indexes
 
 ```sql
-ALTER TABLE ecommerce_source_web.orders 
+ALTER TABLE ecommerce_source_web.orders
 ADD KEY idx_user_order_date (user_id, order_date);
 
 ALTER TABLE ecommerce_source_web.products

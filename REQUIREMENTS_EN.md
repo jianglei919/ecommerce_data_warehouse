@@ -67,7 +67,7 @@ Stores cleaned and transformed statistical data.
 
 ### Requirement 1: Analyze Sales by Product Category and Time Dimension
 
-**📍 Data Source**: `ecommerce_warehouse.fact_sales_by_category_time` (Warehouse table)
+**Data Source**: `ecommerce_warehouse.fact_sales_by_category_time` (Warehouse table)
 
 **Dimensions:**
 
@@ -110,7 +110,7 @@ Category: Books,       Time: 2024-03, Quantity: 80,  Amount: 3200
 
 ### Requirement 2: Top 5 Products by Review Rating
 
-**📍 Data Source**: `ecommerce_warehouse.fact_top_rated_products` (Warehouse table)
+**Data Source**: `ecommerce_warehouse.fact_top_rated_products` (Warehouse table)
 
 **Dimensions:**
 
@@ -156,30 +156,30 @@ Product: Samsung Galaxy,  Category: Electronics, Avg Rating: 4.6, Reviews: 100
 
 ```mermaid
 graph LR
-    subgraph source["📊 Source Layer"]
-        app["📱 ecommerce_source_app<br/>(App Channel)<br/>order_id: INT<br/>date: yyyy-MM-dd"]
-        web["🌐 ecommerce_source_web<br/>(Web Channel)<br/>order_no: VARCHAR<br/>date: MM/dd/yyyy"]
+    subgraph source["Source Layer"]
+        app["ecommerce_source_app<br/>(App Channel)<br/>order_id: INT<br/>date: yyyy-MM-dd"]
+        web["ecommerce_source_web<br/>(Web Channel)<br/>order_no: VARCHAR<br/>date: MM/dd/yyyy"]
     end
 
-    subgraph etl["⚙️ ETL Processing Layer"]
-        extract["1️⃣ Data Extract"]
-        transform["2️⃣ Data Transform<br/>- Unify field names<br/>- Convert date formats<br/>- Type conversion<br/>- Data validation"]
-        clean["3️⃣ Data Cleaning<br/>- Deduplication<br/>- Data verification<br/>- Exception handling"]
+    subgraph etl["ETL Processing Layer"]
+        extract["Data Extract"]
+        transform["Data Transform<br/>- Unify field names<br/>- Convert date formats<br/>- Type conversion<br/>- Data validation"]
+        clean["Data Cleaning<br/>- Deduplication<br/>- Data verification<br/>- Exception handling"]
     end
 
-    subgraph warehouse["📈 Data Warehouse Layer"]
-        sales["💰 fact_sales_by_category_time<br/>(Sales Fact Table)"]
-        top["⭐ fact_top_rated_products<br/>(Product Rating Table)"]
+    subgraph warehouse["Data Warehouse Layer"]
+        sales["fact_sales_by_category_time<br/>(Sales Fact Table)"]
+        top["fact_top_rated_products<br/>(Product Rating Table)"]
     end
 
-    subgraph analytics["📊 Analytics Query Layer"]
+    subgraph analytics["Analytics Query Layer"]
         query1["Query 1<br/>Sales by Category+Time"]
         query2["Query 2<br/>Top Product Ranking"]
     end
 
-    subgraph ui["🖥️ UI Presentation Layer"]
-        chart1["📊 Heatmap & Bar Chart"]
-        chart2["⭐ Leaderboard"]
+    subgraph ui["UI Presentation Layer"]
+        chart1["Heatmap & Bar Chart"]
+        chart2["Leaderboard"]
     end
 
     app --> extract
@@ -214,16 +214,16 @@ graph LR
 
 ---
 
-## 🔑 Key Principles
+## Key Principles
 
-### ⚠️ All Analytics Queries Must Use the Data Warehouse
+### All Analytics Queries Must Use the Data Warehouse
 
 **Key Points:**
 
-- ✅ **Forbidden** to directly query `ecommerce_source_app` or `ecommerce_source_web`
-- ✅ **Required** to query from the two fact tables in `ecommerce_warehouse`
-- ✅ All data must go through ETL processing, format unification, and quality validation before use
-- ✅ Warehouse tables automatically handle App/Web data format differences
+- Forbidden to directly query `ecommerce_source_app` or `ecommerce_source_web`
+- Required to query from the two fact tables in `ecommerce_warehouse`
+- All data must go through ETL processing, format unification, and quality validation before use
+- Warehouse tables automatically handle App/Web data format differences
 
 **Reasons:**
 
@@ -245,10 +245,10 @@ graph LR
 
 ## Workflow
 
-1. ✅ **Requirements Confirmation** (Current stage) - Confirm data model and statistical requirements
-2. ⏳ **Database DDL Development** - Create tables in source and warehouse databases
-3. ⏳ **Sample Data Insertion** - Insert test data into source systems (for demonstration)
-4. ⏳ **ETL Logic Development** - Data cleaning, transformation, and warehouse loading
-5. ⏳ **API Development** - Backend query endpoints
-6. ⏳ **UI Development** - Frontend dashboard
-7. ⏳ **Testing and Deployment** - Docker deployment verification
+1. Requirements Confirmation (Current stage) - Confirm data model and statistical requirements
+2. Database DDL Development - Create tables in source and warehouse databases
+3. Sample Data Insertion - Insert test data into source systems (for demonstration)
+4. ETL Logic Development - Data cleaning, transformation, and warehouse loading
+5. API Development - Backend query endpoints
+6. UI Development - Frontend dashboard
+7. Testing and Deployment - Docker deployment verification
