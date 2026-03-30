@@ -226,18 +226,18 @@ CREATE TABLE orders (
 - App date format: `yyyy-MM-dd`
 - Web date format: `MM/dd/yyyy`
 
-### Table: order_items
+### Table: order_items - Web Source
 
 ```sql
 CREATE TABLE order_items (
     item_id INT PRIMARY KEY AUTO_INCREMENT,
-    order_id VARCHAR(50) NOT NULL,
+    order_no VARCHAR(50) NOT NULL,
     product_id INT NOT NULL,
     quantity INT NOT NULL,
     unit_price DECIMAL(10,2) NOT NULL,
-    FOREIGN KEY (order_id) REFERENCES orders(order_no),
+    FOREIGN KEY (order_no) REFERENCES orders(order_no),
     FOREIGN KEY (product_id) REFERENCES products(product_id),
-    KEY idx_order_id (order_id),
+    KEY idx_order_no (order_no),
     KEY idx_product_id (product_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
@@ -369,7 +369,7 @@ SELECT
     r.rating,
     'WEB' AS source_channel
 FROM ecommerce_source_web.orders w
-INNER JOIN ecommerce_source_web.order_items oi ON w.order_no = oi.order_id
+INNER JOIN ecommerce_source_web.order_items oi ON w.order_no = oi.order_no
 INNER JOIN ecommerce_source_web.products p ON oi.product_id = p.product_id
 LEFT JOIN ecommerce_source_web.product_reviews r ON p.product_id = r.product_id
     AND w.user_id = r.user_id
@@ -426,7 +426,7 @@ FROM (
         r.rating,
         'WEB' AS source_channel
     FROM ecommerce_source_web.orders w
-    INNER JOIN ecommerce_source_web.order_items oi ON w.order_no = oi.order_id
+    INNER JOIN ecommerce_source_web.order_items oi ON w.order_no = oi.order_no
     INNER JOIN ecommerce_source_web.products p ON oi.product_id = p.product_id
     LEFT JOIN ecommerce_source_web.product_reviews r ON p.product_id = r.product_id
         AND w.user_id = r.user_id

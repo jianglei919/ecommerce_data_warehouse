@@ -191,15 +191,15 @@ CREATE TABLE orders (
 ```sql
 CREATE TABLE order_items (
     item_id INT PRIMARY KEY AUTO_INCREMENT,
-    order_id VARCHAR(50) NOT NULL,                     -- 关联到orders.order_no
+    order_no VARCHAR(50) NOT NULL,                     -- 关联到orders.order_no
     product_id INT NOT NULL,
     quantity INT NOT NULL,
     unit_price DECIMAL(10,2) NOT NULL,
     line_total DECIMAL(12,2) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (order_id) REFERENCES orders(order_no) ON DELETE CASCADE,
+    FOREIGN KEY (order_no) REFERENCES orders(order_no) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(product_id),
-    INDEX idx_order_id (order_id),
+    INDEX idx_order_no (order_no),
     INDEX idx_product_id (product_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
@@ -342,7 +342,7 @@ SELECT
     oi.quantity,
     p.category
 FROM web.orders o
-JOIN web.order_items oi ON o.order_no = oi.order_id
+JOIN web.order_items oi ON o.order_no = oi.order_no
 JOIN web.products p ON oi.product_id = p.product_id;
 ```
 
@@ -370,7 +370,7 @@ FROM
      -- 合并Web源
      SELECT STR_TO_DATE(o.order_date, '%m/%d/%Y'), oi.quantity, oi.line_total, p.category
      FROM web.orders o
-     JOIN web.order_items oi ON o.order_no = oi.order_id
+     JOIN web.order_items oi ON o.order_no = oi.order_no
      JOIN web.products p ON oi.product_id = p.product_id
      WHERE o.status = 'completed'
     ) as unified_data
