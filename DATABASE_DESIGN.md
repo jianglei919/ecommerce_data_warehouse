@@ -173,8 +173,7 @@ CREATE TABLE product_reviews (
 
 ```sql
 CREATE TABLE orders (
-    order_id INT PRIMARY KEY AUTO_INCREMENT,           -- 内部标识
-    order_no VARCHAR(50) NOT NULL UNIQUE,              -- Web端订单号 (WEB-001等)
+    order_no VARCHAR(50) PRIMARY KEY,                  -- Web端订单号为主键 (WEB-001等)
     user_id INT NOT NULL,
     order_date DATE NOT NULL,                          -- MM/dd/yyyy格式需在ETL转换为yyyy-MM-dd
     total_amount DECIMAL(12,2) NOT NULL,
@@ -187,7 +186,41 @@ CREATE TABLE orders (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-**其他表结构与source_app相同**：users、products、order_items、product_reviews
+#### 4. 订单明细表 (order_items) - Web渠道
+
+```sql
+CREATE TABLE order_items (
+    item_id INT PRIMARY KEY AUTO_INCREMENT,
+    order_id VARCHAR(50) NOT NULL,                     -- 关联到orders.order_no
+    product_id INT NOT NULL,
+    quantity INT NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL,
+    line_total DECIMAL(12,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(order_no) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(product_id),
+    INDEX idx_order_id (order_id),
+    INDEX idx_product_id (product_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+#### 5. 商品评论表 (product_reviews) - Web渠道
+
+```sql
+CREATE TABLE product_reviews (
+    review_id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT NOT NULL,
+    user_id INT,
+    rating INT CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    review_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(product_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    INDEX idx_product_id (product_id),
+    INDEX idx_rating (rating)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
 
 ---
 
@@ -309,7 +342,7 @@ SELECT
     oi.quantity,
     p.category
 FROM web.orders o
-JOIN web.order_items oi ON o.order_id = oi.order_id
+JOIN web.order_items oi ON o.order_no = oi.order_id
 JOIN web.products p ON oi.product_id = p.product_id;
 ```
 
@@ -337,7 +370,7 @@ FROM
      -- 合并Web源
      SELECT STR_TO_DATE(o.order_date, '%m/%d/%Y'), oi.quantity, oi.line_total, p.category
      FROM web.orders o
-     JOIN web.order_items oi ON o.order_id = oi.order_id
+     JOIN web.order_items oi ON o.order_no = oi.order_id
      JOIN web.products p ON oi.product_id = p.product_id
      WHERE o.status = 'completed'
     ) as unified_data
