@@ -3,40 +3,40 @@
 ## 系统架构概览
 
 ```mermaid
-graph LR
-    subgraph app["APP System"]
+---
+config:
+  layout: dagre
+---
+flowchart LR
+ subgraph app["APP System"]
         u1["users"]
         p1["products"]
-        o1["orders<br/>order_id INT"]
+        o1["orders<br>order_id INT"]
         oi1["order_items"]
         pr1["reviews"]
-    end
-
-    subgraph web["WEB System"]
+  end
+ subgraph web["WEB System"]
         u2["users"]
         p2["products"]
-        o2["orders<br/>order_no VARCHAR"]
+        o2["orders<br>order_no VARCHAR"]
         oi2["order_items"]
         pr2["reviews"]
-    end
-
-    subgraph etl["ETL Transform"]
-        transform["- INT to VARCHAR<br/>- Date format"]
-    end
-
-    subgraph warehouse["Warehouse"]
+  end
+ subgraph etl["ETL Transform"]
+        transform["- INT to VARCHAR<br>- Date format"]
+  end
+ subgraph warehouse["Warehouse"]
         fs["fact_sales"]
         tr["fact_products"]
-    end
-
+  end
     app --> etl
     web --> etl
     etl --> warehouse
 
-    style app fill:#e1f5ff,stroke:#01579b,stroke-width:2px,color:#000
-    style web fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px,color:#000
-    style warehouse fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000
-    style etl fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000
+    style app fill:#e1f5ff,stroke:transparent,stroke-width:2px,color:#000
+    style etl fill:#f3e5f5,stroke:transparent,stroke-width:2px,color:#000
+    style web fill:#e8f5e9,stroke:transparent,stroke-width:2px,color:#000
+    style warehouse fill:#fff3e0,stroke:transparent,stroke-width:2px,color:#000
 ```
 
 ## 异构数据处理总览
