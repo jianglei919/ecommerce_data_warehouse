@@ -3,51 +3,45 @@
 ## System Architecture Diagram
 
 ```mermaid
-graph LR
-    subgraph source_app["APP Source"]
+flowchart TB
+ subgraph source_app["APP Source"]
         app_users["users"]
         app_products["products"]
-        app_orders["orders<br/>INT"]
+        app_orders["orders<br>INT"]
         app_order_items["order_items"]
         app_reviews["reviews"]
-    end
-
-    subgraph source_web["WEB Source"]
+  end
+ subgraph source_web["WEB Source"]
         web_users["users"]
         web_products["products"]
-        web_orders["orders<br/>VARCHAR"]
+        web_orders["orders<br>VARCHAR"]
         web_order_items["order_items"]
         web_reviews["reviews"]
-    end
-
-    subgraph etl["ETL Layer"]
-        clean["Transform &<br/>Unify"]
-    end
-
-    subgraph warehouse["Warehouse"]
+  end
+ subgraph etl["ETL Layer"]
+        clean["Transform &amp;<br>Unify"]
+  end
+ subgraph warehouse["Warehouse"]
         fact_sales["fact_sales"]
         fact_top["fact_products"]
-    end
-
+  end
     app_users --> clean
     app_products --> clean
     app_orders --> clean
     app_order_items --> clean
     app_reviews --> clean
-
     web_users --> clean
     web_products --> clean
     web_orders --> clean
     web_order_items --> clean
     web_reviews --> clean
+    clean --> fact_sales & fact_top
 
-    clean --> fact_sales
-    clean --> fact_top
-
-    style source_app fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
-    style source_web fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
-    style etl fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
-    style warehouse fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#000
+    style clean fill:#FFD600
+    style source_app fill:#e3f2fd,stroke:transparent,stroke-width:2px,color:#FF6D00
+    style source_web fill:#e3f2fd,stroke:transparent,stroke-width:2px,color:#AA00FF
+    style etl fill:#f3e5f5,stroke:transparent,stroke-width:2px,color:#2962FF
+    style warehouse fill:#fff3e0,stroke:transparent,stroke-width:2px,color:transparent
 ```
 
 ---
