@@ -11,12 +11,10 @@ graph TB
         o1["📋 orders<br/>order_id INT<br/>yyyy-MM-dd"]
         oi1["📊 order_items"]
         pr1["⭐ product_reviews"]
-        r1["↩️ returns"]
         u1 ---|1:M| o1
         p1 ---|1:M| oi1
         o1 ---|1:M| oi1
         p1 ---|1:M| pr1
-        o1 ---|1:M| r1
     end
 
     subgraph web["🌐 Source Database 2<br/>(ecommerce_source_web)<br/>Web Portal System"]
@@ -26,12 +24,10 @@ graph TB
         o2["📋 orders<br/>order_no VARCHAR<br/>MM/dd/yyyy"]
         oi2["📊 order_items"]
         pr2["⭐ product_reviews"]
-        r2["↩️ returns"]
         u2 ---|1:M| o2
         p2 ---|1:M| oi2
         o2 ---|1:M| oi2
         p2 ---|1:M| pr2
-        o2 ---|1:M| r2
     end
 
     subgraph etl["⚙️ ETL Processing<br/>Data Transformation"]
@@ -78,7 +74,7 @@ graph TB
 ### 库的用途
 
 - 存储移动应用渠道的所有业务数据
-- 包含6张业务表
+- 包含5张业务表
 - 订单ID使用整数类型：`order_id INT`
 - 日期格式：`yyyy-MM-dd`
 
@@ -172,25 +168,6 @@ CREATE TABLE product_reviews (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-#### 6. 退货表 (returns)
-
-```sql
-CREATE TABLE returns (
-    return_id INT PRIMARY KEY AUTO_INCREMENT,
-    order_id INT NOT NULL,
-    product_id INT NOT NULL,
-    return_date DATE,
-    return_qty INT DEFAULT 1,
-    reason VARCHAR(100),
-    status VARCHAR(20) DEFAULT 'pending',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (order_id) REFERENCES orders(order_id),
-    FOREIGN KEY (product_id) REFERENCES products(product_id),
-    INDEX idx_order_id (order_id),
-    INDEX idx_product_id (product_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```
-
 ---
 
 ## 数据库2：网站端源库 (ecommerce_source_web)
@@ -198,7 +175,7 @@ CREATE TABLE returns (
 ### 库的用途
 
 - 存储网站、H5等Web渠道的业务数据
-- 包含6张业务表（结构与source_app相同，主要区别在订单表）
+- 包含5张业务表（结构与source_app相同，主要区别在订单表）
 - 订单ID使用字符串类型：`order_no VARCHAR`
 - 日期格式需要特殊处理：`MM/dd/yyyy`（ETL时转换为yyyy-MM-dd）
 
@@ -222,7 +199,7 @@ CREATE TABLE orders (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-**其他表结构与source_app相同**：users、products、order_items、product_reviews、returns
+**其他表结构与source_app相同**：users、products、order_items、product_reviews
 
 ---
 
