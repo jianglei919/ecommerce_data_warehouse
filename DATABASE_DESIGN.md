@@ -2,38 +2,57 @@
 
 ## 系统架构概览
 
-```
-┌─────────────────────────────────────────────────────┐
-│           电商数据仓库系统架构                        │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│  ┌──────────────┐      ┌──────────────┐            │
-│  │ source_1库   │      │ source_2库   │            │
-│  │  (分店1)     │      │  (分店2)     │            │
-│  │              │      │              │            │
-│  │ · users      │      │ · users      │            │
-│  │ · products   │      │ · products   │            │
-│  │ · orders     │      │ · orders     │            │
-│  │ · ...        │      │ · ...        │            │
-│  └──────┬───────┘      └───────┬──────┘            │
-│         │                      │                    │
-│         └──────────┬───────────┘                    │
-│                    │ ETL/UNION                      │
-│                    ▼                                │
-│        ┌──────────────────────┐                   │
-│        │  warehouse库         │                   │
-│        │   (数据仓库)         │                   │
-│        │                      │                   │
-│        │ · fact_sales         │                   │
-│        │ · dim_product_*      │                   │
-│        │ · fact_returns       │                   │
-│        │ · kpi_daily          │                   │
-│        └──────────────────────┘                   │
-│                                                     │
-└─────────────────────────────────────────────────────┘
-```
+```mermaid
+graph TB
+    subgraph source1["🏪 业务源库1<br/>(ecommerce_source_1)<br/>分店1: 北京/上海/广州"]
+        direction LR
+        u1["👥 users<br/>3条记录"]
+        p1["📦 products<br/>4条记录"]
+        o1["📋 orders<br/>4条记录"]
+        oi1["📊 order_items"]
+        pr1["⭐ product_reviews"]
+        r1["↩️ returns"]
+        u1 ---|1:M| o1
+        p1 ---|1:M| oi1
+        o1 ---|1:M| oi1
+        p1 ---|1:M| pr1
+        o1 ---|1:M| r1
+    end
 
----
+    subgraph source2["🏪 业务源库2<br/>(ecommerce_source_2)<br/>分店2: 深圳/杭州/成都"]
+        direction LR
+        u2["👥 users<br/>3条记录"]
+        p2["📦 products<br/>4条记录"]
+        o2["📋 orders<br/>4条记录"]
+        oi2["📊 order_items"]
+        pr2["⭐ product_reviews"]
+        r2["↩️ returns"]
+        u2 ---|1:M| o2
+        p2 ---|1:M| oi2
+        o2 ---|1:M| oi2
+        p2 ---|1:M| pr2
+        o2 ---|1:M| r2
+    end
+
+    subgraph warehouse["📊 数据仓库库<br/>(ecommerce_warehouse)<br/>集团级数据分析"]
+        direction LR
+        fs["💰 fact_sales<br/>销售事实表"]
+        dpa["🎯 dim_product_analysis<br/>产品分析维度"]
+        fss["📈 fact_sales_by_season<br/>季节销售"]
+        fr["📉 fact_returns<br/>退货分析"]
+        kpid["📊 kpi_daily<br/>日KPI统计"]
+        fs ---|1:M| dpa
+        fss ---|1:M| dpa
+        fr ---|1:M| dpa
+    end
+
+    source1 -->|UNION ALL<br/>汇聚| warehouse
+    source2 -->|UNION ALL<br/>汇聚| warehouse
+
+    style source1 fill:#e1f5ff,stroke:#01579b,stroke-width:3px,color:#000
+    style source2 fill:#e8f5e9,stroke:#1b5e20,stroke-width:3px,color:#000
+    style warehouse fill:#fff3e0,stroke:#e65100,stroke-width:3px,color:#000
+```
 
 ## 数据库1：业务源库1 (ecommerce_source_1)
 
@@ -373,9 +392,10 @@ SELECT
          JOIN orders o ON oi.order_id = o.order_id
          WHERE oi.product_id = p.product_id AND o.status = 'completed'),
         2
-    ) as return_rate_percent
-FROM products p
-HAVING total_sold > 0
+
+        - 存储分店1（北京/上海/广州）的所有业务数据
+        - 包含6张业务表
+        - 与source_2完全相同的表结构（便于数据合并）
 ORDER BY return_rate_percent DESC
 LIMIT 20;
 ```
