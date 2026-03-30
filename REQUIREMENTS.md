@@ -67,6 +67,8 @@
 
 ### 需求1：按商品种类和时间维度分析销量
 
+**📍 数据源**：`ecommerce_warehouse.fact_sales_by_category_time` （仓库表）
+
 **维度：**
 
 - 商品种类（category）
@@ -74,15 +76,29 @@
 
 **指标：**
 
-- 销量（数量）
-- 销售额
+- 销量（total_quantity）
+- 销售额（total_sales_amount）
 
 **输出展示：**
 
 - 热力图（X轴：时间，Y轴：分类，值：销量）
 - 柱状图（按分类或时间段对比）
 
-**示例查询结果：**
+**示例查询**：
+
+```sql
+-- 查询必须基于数据仓库表
+SELECT
+    category,
+    CONCAT(year, '-', LPAD(month, 2, '0')) as time_period,
+    total_quantity,
+    total_sales_amount
+FROM ecommerce_warehouse.fact_sales_by_category_time
+WHERE year = 2024
+ORDER BY category, year, month, day;
+```
+
+**示例结果**：
 
 ```
 Category: Electronics, Time: 2024-03, Quantity: 150, Amount: 45000
@@ -93,6 +109,8 @@ Category: Books,       Time: 2024-03, Quantity: 80,  Amount: 3200
 ---
 
 ### 需求2：按评论统计Top5商品
+
+**📍 数据源**：`ecommerce_warehouse.fact_top_rated_products` （仓库表）
 
 **维度：**
 
@@ -108,7 +126,22 @@ Category: Books,       Time: 2024-03, Quantity: 80,  Amount: 3200
 
 - 排行榜（显示Top 5商品及其评分）
 
-**示例查询结果：**
+**示例查询**：
+
+```sql
+-- 查询必须基于数据仓库表
+SELECT
+    product_name,
+    category,
+    avg_rating,
+    review_count
+FROM ecommerce_warehouse.fact_top_rated_products
+WHERE year = 2024 AND month = 3
+ORDER BY avg_rating DESC, review_count DESC
+LIMIT 5;
+```
+
+**示例结果**：
 
 ```
 Product: iPhone 14,       Category: Electronics, Avg Rating: 4.8, Reviews: 150
@@ -119,38 +152,85 @@ Product: Samsung Galaxy,  Category: Electronics, Avg Rating: 4.6, Reviews: 100
 
 ---
 
-## 数据处理流程
+## 数据处理流程 - ETL 架构
 
+```mermaid
+graph LR
+    subgraph source["📊 数据源层 (Source Layer)"]
+        app["📱 ecommerce_source_app<br/>(App 渠道)<br/>order_id: INT<br/>date: yyyy-MM-dd"]
+        web["🌐 ecommerce_source_web<br/>(Web 渠道)<br/>order_no: VARCHAR<br/>date: MM/dd/yyyy"]
+    end
+
+    subgraph etl["⚙️ ETL 处理层 (ETL Layer)"]
+        extract["1️⃣ 数据提取<br/>Extract"]
+        transform["2️⃣ 数据转换<br/>- 字段名统一<br/>- 日期格式转换<br/>- 类型转换<br/>- 数据验证"]
+        clean["3️⃣ 数据清理<br/>- 去重<br/>- 数据校验<br/>- 异常处理"]
+    end
+
+    subgraph warehouse["📈 数据仓库层 (Warehouse Layer)"]
+        sales["💰 fact_sales_by_category_time<br/>(销量事实表)"]
+        top["⭐ fact_top_rated_products<br/>(商品评分表)"]
+    end
+
+    subgraph analytics["📊 分析查询层 (Analytics Layer)"]
+        query1["Query 1<br/>按分类+时间<br/>销量分析"]
+        query2["Query 2<br/>按评分<br/>Top商品排行"]
+    end
+
+    subgraph ui["🖥️ 前端展示层 (UI Layer)"]
+        chart1["📊 热力图 & 柱状图"]
+        chart2["⭐ 排行榜"]
+    end
+
+    app --> extract
+    web --> extract
+    extract --> transform
+    transform --> clean
+    clean --> sales
+    clean --> top
+
+    sales --> query1
+    top --> query2
+
+    query1 --> chart1
+    query2 --> chart2
+
+    style source fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
+    style etl fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
+    style warehouse fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#000
+    style analytics fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#000
+    style ui fill:#fce4ec,stroke:#c2185b,stroke-width:2px,color:#000
 ```
-┌──────────────────────┐         ┌──────────────────────┐
-│ ecommerce_source_app │         │ ecommerce_source_web │
-│  (App 数据源)        │         │  (Web 数据源)        │
-└──────────┬───────────┘         └──────────┬───────────┘
-           │                               │
-           │  Data Clean-up & ETL          │
-           │  - 字段名统一                  │
-           │  - 日期格式转换                │
-           │  - 数据验证和去重              │
-           │                               │
-           └──────────┬────────────────────┘
-                      │
-                      ▼
-          ┌──────────────────────┐
-          │ ecommerce_warehouse  │
-          │  (分析数据仓库)       │
-          └──────────┬───────────┘
-                      │
-         ┌────────────┴────────────┐
-         ▼                         ▼
-    ┌─────────────────┐    ┌──────────────────┐
-    │ Sales Analysis  │    │ Top Rated Review │
-    │ by Category     │    │ Product Analysis │
-    └─────────────────┘    └──────────────────┘
-         │                         │
-         └────────────┬────────────┘
-                      ▼
-              UI 仪表板展示
-```
+
+**流程说明：**
+
+| 层级              | 组件               | 颜色    | 详细说明               |
+| ----------------- | ------------------ | ------- | ---------------------- |
+| 📊 **数据源层**   | App / Web 源库     | 🔵 蓝色 | 两个异构的业务系统     |
+| ⚙️ **ETL 处理层** | 提取 → 转换 → 清理 | 🟣 紫色 | 数据清理和格式转换     |
+| 📈 **数据仓库层** | 两个核心事实表     | 🟠 橙色 | **所有查询的数据源**   |
+| 📊 **分析查询层** | 基于仓库的查询     | 🟢 绿色 | **必须基于仓库表查询** |
+| 🖥️ **前端展示层** | 图表和仪表板       | 🔴 粉色 | 最终用户界面           |
+
+---
+
+## 🔑 关键原则
+
+### ⚠️ 所有分析查询都基于数据仓库
+
+**重点强调**：
+
+- ✅ **禁止**直接查询 `ecommerce_source_app` 或 `ecommerce_source_web`
+- ✅ **必须**从 `ecommerce_warehouse` 中的两个事实表查询
+- ✅ 所有数据必须经过 ETL 处理、格式统一和清洁验证后才能使用
+- ✅ 仓库表已自动处理 App/Web 的数据格式差异
+
+**原因**：
+
+1. **数据一致性** - 确保两个渠道的数据格式统一
+2. **数据质量** - 数据已清洁、去重、验证
+3. **性能优化** - 仓库表通过索引优化了查询效率
+4. **业务逻辑统一** - 所有分析基于相同的数据处理规则
 
 ---
 
