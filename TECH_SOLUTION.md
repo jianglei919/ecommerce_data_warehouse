@@ -39,17 +39,40 @@
 
 ## 业务架构
 
-```
-数据源层             事件层             处理层             仓库层            展示层
-┌──────────┐        ┌──────┐         ┌────────┐        ┌────────┐       ┌──────┐
-│ App DB   │──DML──→│      │         │        │        │        │       │      │
-│ (MySQL)  │        │ Event│        │ ETL    │       │ Data   │       │Vue3  │
-│          │        │ Bus  │───────→│Process │───────→│Warehouse│──────→│      │
-│ Web DB   │──DML──→│      │        │        │        │(MySQL)  │       │Charts│
-│ (MySQL)  │        │      │        │        │        │         │       │      │
-└──────────┘        │(Kafka│        └────────┘        └─────────┘       └──────┘
-                    └──────┘
-                    约1秒延迟           约2秒处理                        实时展示
+```mermaid
+graph LR
+    subgraph source["数据源层"]
+        appdb["App DB<br/>(MySQL)"]
+        webdb["Web DB<br/>(MySQL)"]
+    end
+
+    subgraph event["事件层"]
+        kafka["Event Bus<br/>(Kafka)"]
+    end
+
+    subgraph process["处理层"]
+        etl["ETL Process"]
+    end
+
+    subgraph warehouse["仓库层"]
+        whdb["Data Warehouse<br/>(MySQL)"]
+    end
+
+    subgraph display["展示层"]
+        vue["Vue3<br/>Charts"]
+    end
+
+    appdb -->|DML| kafka
+    webdb -->|DML| kafka
+    kafka -->|~1秒延迟| etl
+    etl -->|~2秒处理| whdb
+    whdb -->|实时展示| vue
+
+    style source fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    style event fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style process fill:#ffe0b2,stroke:#f57c00,stroke-width:2px
+    style warehouse fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style display fill:#fce4ec,stroke:#c2185b,stroke-width:2px
 ```
 
 ---
@@ -117,62 +140,133 @@ graph TB
 
 ### 第1层：数据源层
 
-```
-ecommerce_source_app          ecommerce_source_web
-├── users                      ├── users
-├── products                    ├── products
-├── orders (PK: order_id INT)  ├── orders (PK: order_no VARCHAR)
-├── order_items                 ├── order_items
-└── product_reviews             └── product_reviews
+```mermaid
+graph TB
+    subgraph app["ecommerce_source_app"]
+        au1["users"]
+        ap1["products"]
+        ao1["orders<br/>(PK: order_id INT)"]
+        aoi1["order_items"]
+        apr1["product_reviews"]
+    end
 
-特点：
-- App: order_id(INT), order_date(yyyy-MM-dd)
-- Web: order_no(VARCHAR), order_date(MM/dd/yyyy)
+    subgraph web["ecommerce_source_web"]
+        wu1["users"]
+        wp1["products"]
+        wo1["orders<br/>(PK: order_no VARCHAR)"]
+        woi1["order_items"]
+        wpr1["product_reviews"]
+    end
+
+    info1["🔵 App 特点<br/>order_id: INT<br/>order_date: yyyy-MM-dd"]
+    info2["🟢 Web 特点<br/>order_no: VARCHAR<br/>order_date: MM/dd/yyyy"]
+
+    style app fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style web fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    style info1 fill:#fff9c4,stroke:#f9a825,stroke-width:1px
+    style info2 fill:#fff9c4,stroke:#f9a825,stroke-width:1px
 ```
 
 ### 第2层：事件驱动层 ⭐ 核心创新
 
-```
-业务系统变更
-    ↓
-发送事件到Kafka
-    ↓
-事件总线 (Kafka)
-    ├── order-events
-    ├── product-events
-    └── review-events
-    ↓
-多个消费者独立消费
-    ├── WarehouseETLConsumer (→仓库)
-    ├── AnalyticsConsumer (→缓存)
-    └── NotificationConsumer (→通知)
+```mermaid
+graph TD
+    change["业务系统变更"]
+    pub["发送事件到Kafka"]
+    kafka["事件总线 Kafka"]
+    order["order-events"]
+    product["product-events"]
+    review["review-events"]
+    consumer["多个消费者<br/>独立消费"]
+    c1["WarehouseETLConsumer<br/>(→仓库)"]
+    c2["AnalyticsConsumer<br/>(→缓存)"]
+    c3["NotificationConsumer<br/>(→通知)"]
+
+    change --> pub
+    pub --> kafka
+    kafka --> order
+    kafka --> product
+    kafka --> review
+    order --> consumer
+    product --> consumer
+    review --> consumer
+    consumer --> c1
+    consumer --> c2
+    consumer --> c3
+
+    style change fill:#ffccbc,stroke:#d84315,stroke-width:2px
+    style pub fill:#ffe0b2,stroke:#f57c00,stroke-width:2px
+    style kafka fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style order fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px
+    style product fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px
+    style review fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px
+    style consumer fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
+    style c1 fill:#e1f5fe,stroke:#0288d1,stroke-width:1px
+    style c2 fill:#e1f5fe,stroke:#0288d1,stroke-width:1px
+    style c3 fill:#e1f5fe,stroke:#0288d1,stroke-width:1px
 ```
 
 ### 第3层：ETL处理层
 
-```
-EventConsumer (Kafka消费)
-    ↓
-DataExtractor (事件解析)
-    ↓
-DataTransformer (字段/类型统一)
-    ├── 字段名映射: order_id ↔ order_no
-    ├── 类型转换: INT → VARCHAR
-    └── 日期格式: MM/dd/yyyy → yyyy-MM-dd
-    ↓
-DataValidator (验证/清洁)
-    ├── 数据完整性检查
-    ├── 去重检查
-    └── 业务规则校验
-    ↓
-WarehouseLoader (加载到仓库)
-    ├── INSERT/UPDATE fact_sales_by_category_time
-    └── INSERT/UPDATE fact_top_rated_products
-    ↓
-CompletionHandler (完成处理)
-    ├── 记录同步日志
-    ├── 发送邮件/消息
-    └── 触发缓存更新
+```mermaid
+graph TD
+    consumer["EventConsumer<br/>(Kafka消费)"]
+    extract["DataExtractor<br/>(事件解析)"]
+    transform["DataTransformer<br/>(字段/类型统一)"]
+    t1["字段名映射: order_id ↔ order_no"]
+    t2["类型转换: INT → VARCHAR"]
+    t3["日期格式: MM/dd/yyyy → yyyy-MM-dd"]
+    validate["DataValidator<br/>(验证/清洁)"]
+    v1["数据完整性检查"]
+    v2["去重检查"]
+    v3["业务规则校验"]
+    load["WarehouseLoader<br/>(加载到仓库)"]
+    l1["INSERT/UPDATE<br/>fact_sales_by_category_time"]
+    l2["INSERT/UPDATE<br/>fact_top_rated_products"]
+    handler["CompletionHandler<br/>(完成处理)"]
+    h1["记录同步日志"]
+    h2["发送邮件/消息"]
+    h3["触发缓存更新"]
+
+    consumer --> extract
+    extract --> transform
+    transform --> t1
+    transform --> t2
+    transform --> t3
+    t1 --> validate
+    t2 --> validate
+    t3 --> validate
+    validate --> v1
+    validate --> v2
+    validate --> v3
+    v1 --> load
+    v2 --> load
+    v3 --> load
+    load --> l1
+    load --> l2
+    l1 --> handler
+    l2 --> handler
+    handler --> h1
+    handler --> h2
+    handler --> h3
+
+    style consumer fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style extract fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style transform fill:#ffe0b2,stroke:#f57c00,stroke-width:2px
+    style t1 fill:#ffe0b2,stroke:#f57c00,stroke-width:1px
+    style t2 fill:#ffe0b2,stroke:#f57c00,stroke-width:1px
+    style t3 fill:#ffe0b2,stroke:#f57c00,stroke-width:1px
+    style validate fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style v1 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px
+    style v2 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px
+    style v3 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px
+    style load fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    style l1 fill:#fce4ec,stroke:#c2185b,stroke-width:1px
+    style l2 fill:#fce4ec,stroke:#c2185b,stroke-width:1px
+    style handler fill:#e0f2f1,stroke:#00897b,stroke-width:2px
+    style h1 fill:#e0f2f1,stroke:#00897b,stroke-width:1px
+    style h2 fill:#e0f2f1,stroke:#00897b,stroke-width:1px
+    style h3 fill:#e0f2f1,stroke:#00897b,stroke-width:1px
 ```
 
 ---
@@ -839,31 +933,39 @@ onBeforeUnmount(() => {
 
 ### 架构流程图
 
-```
-App业务系统          Web业务系统
-    │DML                  │DML
-    ↓                     ↓
-OrderEvent (JSON)    OrderEvent (JSON)
-    │                     │
-    └─────────┬───────────┘
-              ↓
-        Kafka Topic
-       (order-events)
-       [Partitions: 3]
-              ↓
-    WarehouseETLConsumer
-       (并发消费)
-              ↓
-    [Transform/Validate]
-              ↓
-    Warehouse Database
-    [fact_sales_by_category_time]
-    [fact_top_rated_products]
-              ↓
-    API Query Layer
-              ↓
-    Vue3 Frontend
-       (WebSocket更新)
+```mermaid
+graph TD
+    app["App业务系统"]
+    web["Web业务系统"]
+    appevt["OrderEvent<br/>(JSON)"]
+    webevt["OrderEvent<br/>(JSON)"]
+    kafka["Kafka Topic<br/>(order-events)<br/>Partitions: 3"]
+    consumer["WarehouseETLConsumer<br/>(并发消费)"]
+    transform["Transform/Validate"]
+    warehouse["Warehouse Database<br/>fact_sales_by_category_time<br/>fact_top_rated_products"]
+    api["API Query Layer"]
+    frontend["Vue3 Frontend<br/>(WebSocket更新)"]
+
+    app -->|DML| appevt
+    web -->|DML| webevt
+    appevt --> kafka
+    webevt --> kafka
+    kafka --> consumer
+    consumer --> transform
+    transform --> warehouse
+    warehouse --> api
+    api --> frontend
+
+    style app fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
+    style web fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
+    style appevt fill:#ffe0b2,stroke:#f57c00,stroke-width:2px
+    style webevt fill:#ffe0b2,stroke:#f57c00,stroke-width:2px
+    style kafka fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style consumer fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style transform fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    style warehouse fill:#ffccbc,stroke:#d84315,stroke-width:2px
+    style api fill:#e0f2f1,stroke:#00897b,stroke-width:2px
+    style frontend fill:#fce4ec,stroke:#c2185b,stroke-width:2px
 ```
 
 ### 关键特性
@@ -878,39 +980,74 @@ OrderEvent (JSON)    OrderEvent (JSON)
 
 ### 端到端延迟分析
 
-```
-发布数据变更
-    ↓ (1ms)
-Kafka生产者消息
-    ↓ (5ms - broker处理)
-消费者获取消息
-    ↓ (50-100ms - 转换验证)
-加载到仓库
-    ↓ (20-50ms - 数据库操作)
-API查询展示
-    ↓ (50-100ms - 前端渲染)
-─────────────
-总延迟：~ 150-300ms
-用户体验：✅ 基本实时
+```mermaid
+graph TD
+    step1["发布数据变更"]:::step1
+    step2["Kafka生产者消息<br/>(1ms):"]:::time1
+    step3["消费者获取消息<br/>(5ms - broker处理)"]:::time2
+    step4["消费者获取消息<br/>(50-100ms - 转换验证)"]:::time3
+    step5["加载到仓库<br/>(20-50ms - 数据库操作)"]:::time4
+    step6["API查询展示<br/>(50-100ms - 前端渲染)"]:::time5
+    result["总延迟: ~ 150-300ms<br/>用户体验: ✅ 基本实时"]:::result
+
+    step1 --> step2
+    step2 --> step3
+    step3 --> step4
+    step4 --> step5
+    step5 --> step6
+    step6 --> result
+
+    classDef step1 fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef time1 fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    classDef time2 fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef time3 fill:#ffe0b2,stroke:#e65100,stroke-width:2px
+    classDef time4 fill:#ffccbc,stroke:#d84315,stroke-width:2px
+    classDef time5 fill:#ffab91,stroke:#bf360c,stroke-width:2px
+    classDef result fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
 ```
 
 ### 高可用设计
 
-```
-Kafka集群 (3 Nodes)
-├── Leader副本 (broker1)
-├── 副本1 (broker2)
-└── 副本2 (broker3)
+```mermaid
+graph TB
+    subgraph kafka["Kafka集群 3 Nodes"]
+        leader["Leader副本<br/>(broker1)"]
+        rep1["副本1<br/>(broker2)"]
+        rep2["副本2<br/>(broker3)"]
+    end
 
-WarehouseETLConsumer group
-├── Instance 1 - 消费partition 0
-├── Instance 2 - 消费partition 1
-└── Instance 3 - 消费partition 2
+    subgraph consumer["WarehouseETLConsumer group"]
+        i1["Instance 1<br/>消费partition 0"]
+        i2["Instance 2<br/>消费partition 1"]
+        i3["Instance 3<br/>消费partition 2"]
+    end
 
-故障恢复：
-- Broker宕机 → kafka自动重选Leader
-- Consumer宕机 → 其他consumer消费其分区
-- 消息丢失 → 副本机制保证
+    recovery["故障恢复机制"]
+    r1["🔴 Broker宕机<br/>→ kafka自动重选Leader"]
+    r2["🔴 Consumer宕机<br/>→ 其他consumer消费其分区"]
+    r3["🔴 消息丢失<br/>→ 副本机制保证"]
+
+    leader -.副本同步.- rep1
+    leader -.副本同步.- rep2
+    kafka --> i1
+    kafka --> i2
+    kafka --> i3
+    recovery --> r1
+    recovery --> r2
+    recovery --> r3
+
+    style leader fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
+    style rep1 fill:#e8f5e9,stroke:#388e3c,stroke-width:1px
+    style rep2 fill:#e8f5e9,stroke:#388e3c,stroke-width:1px
+    style kafka fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
+    style i1 fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style i2 fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style i3 fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style consumer fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style recovery fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    style r1 fill:#ffccbc,stroke:#d84315,stroke-width:1px
+    style r2 fill:#ffccbc,stroke:#d84315,stroke-width:1px
+    style r3 fill:#ffccbc,stroke:#d84315,stroke-width:1px
 ```
 
 ---

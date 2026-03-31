@@ -117,62 +117,133 @@ graph TB
 
 ### Layer 1: Data Source Layer
 
-```
-ecommerce_source_app          ecommerce_source_web
-├── users                      ├── users
-├── products                    ├── products
-├── orders (PK: order_id INT)  ├── orders (PK: order_no VARCHAR)
-├── order_items                 ├── order_items
-└── product_reviews             └── product_reviews
+```mermaid
+graph TB
+    subgraph app["ecommerce_source_app"]
+        au1["users"]
+        ap1["products"]
+        ao1["orders<br/>(PK: order_id INT)"]
+        aoi1["order_items"]
+        apr1["product_reviews"]
+    end
 
-Characteristics:
-- App: order_id(INT), order_date(yyyy-MM-dd)
-- Web: order_no(VARCHAR), order_date(MM/dd/yyyy)
+    subgraph web["ecommerce_source_web"]
+        wu1["users"]
+        wp1["products"]
+        wo1["orders<br/>(PK: order_no VARCHAR)"]
+        woi1["order_items"]
+        wpr1["product_reviews"]
+    end
+
+    info1["🔵 App Characteristics<br/>order_id: INT<br/>order_date: yyyy-MM-dd"]
+    info2["🟢 Web Characteristics<br/>order_no: VARCHAR<br/>order_date: MM/dd/yyyy"]
+
+    style app fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style web fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    style info1 fill:#fff9c4,stroke:#f9a825,stroke-width:1px
+    style info2 fill:#fff9c4,stroke:#f9a825,stroke-width:1px
 ```
 
 ### Layer 2: Event-Driven Layer ⭐ Core Innovation
 
-```
-Business System Updates
-    ↓
-Publish Events to Kafka
-    ↓
-Event Bus (Kafka)
-    ├── order-events
-    ├── product-events
-    └── review-events
-    ↓
-Multiple Consumers Process Independently
-    ├── WarehouseETLConsumer (→ Warehouse)
-    ├── AnalyticsConsumer (→ Cache)
-    └── NotificationConsumer (→ Notifications)
+```mermaid
+graph TD
+    change["Business System Updates"]
+    pub["Publish Events to Kafka"]
+    kafka["Event Bus Kafka"]
+    order["order-events"]
+    product["product-events"]
+    review["review-events"]
+    consumer["Multiple Consumers<br/>Process Independently"]
+    c1["WarehouseETLConsumer<br/>(→ Warehouse)"]
+    c2["AnalyticsConsumer<br/>(→ Cache)"]
+    c3["NotificationConsumer<br/>(→ Notifications)"]
+
+    change --> pub
+    pub --> kafka
+    kafka --> order
+    kafka --> product
+    kafka --> review
+    order --> consumer
+    product --> consumer
+    review --> consumer
+    consumer --> c1
+    consumer --> c2
+    consumer --> c3
+
+    style change fill:#ffccbc,stroke:#d84315,stroke-width:2px
+    style pub fill:#ffe0b2,stroke:#f57c00,stroke-width:2px
+    style kafka fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style order fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px
+    style product fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px
+    style review fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px
+    style consumer fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
+    style c1 fill:#e1f5fe,stroke:#0288d1,stroke-width:1px
+    style c2 fill:#e1f5fe,stroke:#0288d1,stroke-width:1px
+    style c3 fill:#e1f5fe,stroke:#0288d1,stroke-width:1px
 ```
 
 ### Layer 3: ETL Processing Layer
 
-```
-EventConsumer (Kafka Consumption)
-    ↓
-DataExtractor (Event Parsing)
-    ↓
-DataTransformer (Field/Type Unification)
-    ├── Field Mapping: order_id ↔ order_no
-    ├── Type Conversion: INT → VARCHAR
-    └── Date Format: MM/dd/yyyy → yyyy-MM-dd
-    ↓
-DataValidator (Validation/Cleansing)
-    ├── Data Completeness Check
-    ├── Deduplication Check
-    └── Business Rule Validation
-    ↓
-WarehouseLoader (Load to Warehouse)
-    ├── INSERT/UPDATE fact_sales_by_category_time
-    └── INSERT/UPDATE fact_top_rated_products
-    ↓
-CompletionHandler (Post-Processing)
-    ├── Record Sync Logs
-    ├── Send Email/Messages
-    └── Trigger Cache Updates
+```mermaid
+graph TD
+    consumer["EventConsumer<br/>(Kafka Consumption)"]
+    extract["DataExtractor<br/>(Event Parsing)"]
+    transform["DataTransformer<br/>(Field/Type Unification)"]
+    t1["Field Mapping: order_id ↔ order_no"]
+    t2["Type Conversion: INT → VARCHAR"]
+    t3["Date Format: MM/dd/yyyy → yyyy-MM-dd"]
+    validate["DataValidator<br/>(Validation/Cleansing)"]
+    v1["Data Completeness Check"]
+    v2["Deduplication Check"]
+    v3["Business Rule Validation"]
+    load["WarehouseLoader<br/>(Load to Warehouse)"]
+    l1["INSERT/UPDATE<br/>fact_sales_by_category_time"]
+    l2["INSERT/UPDATE<br/>fact_top_rated_products"]
+    handler["CompletionHandler<br/>(Post-Processing)"]
+    h1["Record Sync Logs"]
+    h2["Send Email/Messages"]
+    h3["Trigger Cache Updates"]
+
+    consumer --> extract
+    extract --> transform
+    transform --> t1
+    transform --> t2
+    transform --> t3
+    t1 --> validate
+    t2 --> validate
+    t3 --> validate
+    validate --> v1
+    validate --> v2
+    validate --> v3
+    v1 --> load
+    v2 --> load
+    v3 --> load
+    load --> l1
+    load --> l2
+    l1 --> handler
+    l2 --> handler
+    handler --> h1
+    handler --> h2
+    handler --> h3
+
+    style consumer fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style extract fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style transform fill:#ffe0b2,stroke:#f57c00,stroke-width:2px
+    style t1 fill:#ffe0b2,stroke:#f57c00,stroke-width:1px
+    style t2 fill:#ffe0b2,stroke:#f57c00,stroke-width:1px
+    style t3 fill:#ffe0b2,stroke:#f57c00,stroke-width:1px
+    style validate fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style v1 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px
+    style v2 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px
+    style v3 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px
+    style load fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    style l1 fill:#fce4ec,stroke:#c2185b,stroke-width:1px
+    style l2 fill:#fce4ec,stroke:#c2185b,stroke-width:1px
+    style handler fill:#e0f2f1,stroke:#00897b,stroke-width:2px
+    style h1 fill:#e0f2f1,stroke:#00897b,stroke-width:1px
+    style h2 fill:#e0f2f1,stroke:#00897b,stroke-width:1px
+    style h3 fill:#e0f2f1,stroke:#00897b,stroke-width:1px
 ```
 
 ---
@@ -837,31 +908,39 @@ onBeforeUnmount(() => {
 
 ### Architecture Process Flow
 
-```
-App Business System     Web Business System
-    │DML                     │DML
-    ↓                        ↓
-OrderEvent (JSON)      OrderEvent (JSON)
-    │                        │
-    └────────┬────────────────┘
-             ↓
-       Kafka Topic
-      (order-events)
-      [Partitions: 3]
-             ↓
-   WarehouseETLConsumer
-    (Concurrent Processing)
-             ↓
-   [Transform/Validate]
-             ↓
-   Warehouse Database
-   [fact_sales_by_category_time]
-   [fact_top_rated_products]
-             ↓
-   API Query Layer
-             ↓
-   Vue3 Frontend
-    (WebSocket Updates)
+```mermaid
+graph TD
+    app["App Business System"]
+    web["Web Business System"]
+    appevt["OrderEvent<br/>(JSON)"]
+    webevt["OrderEvent<br/>(JSON)"]
+    kafka["Kafka Topic<br/>(order-events)<br/>Partitions: 3"]
+    consumer["WarehouseETLConsumer<br/>(Concurrent Processing)"]
+    transform["Transform/Validate"]
+    warehouse["Warehouse Database<br/>fact_sales_by_category_time<br/>fact_top_rated_products"]
+    api["API Query Layer"]
+    frontend["Vue3 Frontend<br/>(WebSocket Updates)"]
+
+    app -->|DML| appevt
+    web -->|DML| webevt
+    appevt --> kafka
+    webevt --> kafka
+    kafka --> consumer
+    consumer --> transform
+    transform --> warehouse
+    warehouse --> api
+    api --> frontend
+
+    style app fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
+    style web fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
+    style appevt fill:#ffe0b2,stroke:#f57c00,stroke-width:2px
+    style webevt fill:#ffe0b2,stroke:#f57c00,stroke-width:2px
+    style kafka fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style consumer fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style transform fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    style warehouse fill:#ffccbc,stroke:#d84315,stroke-width:2px
+    style api fill:#e0f2f1,stroke:#00897b,stroke-width:2px
+    style frontend fill:#fce4ec,stroke:#c2185b,stroke-width:2px
 ```
 
 ### Key Features
@@ -876,39 +955,74 @@ OrderEvent (JSON)      OrderEvent (JSON)
 
 ### End-to-End Latency Analysis
 
-```
-Publish data change
-    ↓ (1ms)
-Kafka producer message
-    ↓ (5ms - broker processing)
-Consumer fetch message
-    ↓ (50-100ms - transform and validate)
-Load to warehouse
-    ↓ (20-50ms - database operation)
-API query and display
-    ↓ (50-100ms - frontend rendering)
-─────────────
-Total Latency: ~ 150-300ms
-User Experience: ✅ Essentially real-time
+```mermaid
+graph TD
+    step1["Publish data change"]:::step1
+    step2["Kafka producer message<br/>(1ms)"]:::time1
+    step3["Consumer fetch message<br/>(5ms - broker processing)"]:::time2
+    step4["Consumer fetch message<br/>(50-100ms - transform and validate)"]:::time3
+    step5["Load to warehouse<br/>(20-50ms - database operation)"]:::time4
+    step6["API query and display<br/>(50-100ms - frontend rendering)"]:::time5
+    result["Total Latency: ~ 150-300ms<br/>User Experience: Essential Real-time"]:::result
+
+    step1 --> step2
+    step2 --> step3
+    step3 --> step4
+    step4 --> step5
+    step5 --> step6
+    step6 --> result
+
+    classDef step1 fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef time1 fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    classDef time2 fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef time3 fill:#ffe0b2,stroke:#e65100,stroke-width:2px
+    classDef time4 fill:#ffccbc,stroke:#d84315,stroke-width:2px
+    classDef time5 fill:#ffab91,stroke:#bf360c,stroke-width:2px
+    classDef result fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
 ```
 
 ### High Availability Design
 
-```
-Kafka Cluster (3 Nodes)
-├── Leader Replica (broker1)
-├── Replica 1 (broker2)
-└── Replica 2 (broker3)
+```mermaid
+graph TB
+    subgraph kafka["Kafka Cluster 3 Nodes"]
+        leader["Leader Replica<br/>(broker1)"]
+        rep1["Replica 1<br/>(broker2)"]
+        rep2["Replica 2<br/>(broker3)"]
+    end
 
-WarehouseETLConsumer group
-├── Instance 1 - Consume partition 0
-├── Instance 2 - Consume partition 1
-└── Instance 3 - Consume partition 2
+    subgraph consumer["WarehouseETLConsumer group"]
+        i1["Instance 1<br/>Consume partition 0"]
+        i2["Instance 2<br/>Consume partition 1"]
+        i3["Instance 3<br/>Consume partition 2"]
+    end
 
-Failure Recovery:
-- Broker failure → kafka auto-reelects Leader
-- Consumer failure → other consumers consume its partitions
-- Message loss → replica mechanism ensures safety
+    recovery["Failure Recovery Mechanism"]
+    r1["🔴 Broker failure<br/>→ kafka auto-reelects Leader"]
+    r2["🔴 Consumer failure<br/>→ other consumers consume its partitions"]
+    r3["🔴 Message loss<br/>→ replica mechanism ensures safety"]
+
+    leader -.Replica sync.- rep1
+    leader -.Replica sync.- rep2
+    kafka --> i1
+    kafka --> i2
+    kafka --> i3
+    recovery --> r1
+    recovery --> r2
+    recovery --> r3
+
+    style leader fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
+    style rep1 fill:#e8f5e9,stroke:#388e3c,stroke-width:1px
+    style rep2 fill:#e8f5e9,stroke:#388e3c,stroke-width:1px
+    style kafka fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
+    style i1 fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style i2 fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style i3 fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style consumer fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style recovery fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    style r1 fill:#ffccbc,stroke:#d84315,stroke-width:1px
+    style r2 fill:#ffccbc,stroke:#d84315,stroke-width:1px
+    style r3 fill:#ffccbc,stroke:#d84315,stroke-width:1px
 ```
 
 ---
