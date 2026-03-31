@@ -5,12 +5,18 @@ import Dashboard from '../views/Dashboard.vue'
 import SalesAnalytics from '../views/SalesAnalytics.vue'
 import ProductInsights from '../views/ProductInsights.vue'
 import SyncMonitor from '../views/SyncMonitor.vue'
+import UnifiedOrders from '../views/UnifiedOrders.vue'
 
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
     name: 'Dashboard',
     component: Dashboard,
+  },
+  {
+    path: '/orders',
+    name: 'UnifiedOrders',
+    component: UnifiedOrders,
   },
   {
     path: '/sales',

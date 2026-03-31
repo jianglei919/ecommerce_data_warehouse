@@ -6,6 +6,46 @@
 --   - 支持多维度分析
 --   - 跟踪所有数据同步日志
 -- =====================================================
+-- 统一订单表 (V2新增): 聚合来自App和Web两个业务源的订单数据
+CREATE TABLE
+    unified_orders (
+        unified_order_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '统一订单ID',
+        source VARCHAR(10) NOT NULL COMMENT 'APP 或 WEB',
+        app_order_id INT COMMENT 'App系统订单ID',
+        web_order_no VARCHAR(50) COMMENT 'Web系统订单号',
+        user_id INT NOT NULL COMMENT '用户ID (在各源系统中的ID)',
+        order_date DATE NOT NULL,
+        total_amount DECIMAL(15, 2) NOT NULL,
+        status VARCHAR(20) DEFAULT 'pending' COMMENT 'pending, completed, cancelled, etc.',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_source_order (source, app_order_id, web_order_no),
+        KEY idx_source (source),
+        KEY idx_order_date (order_date),
+        KEY idx_user_id (user_id),
+        KEY idx_status (status),
+        KEY idx_source_date (source, order_date)
+    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '统一订单表 (App+Web)';
+
+-- 统一订单项详情表
+CREATE TABLE
+    unified_order_items (
+        unified_item_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '统一订单项ID',
+        unified_order_id INT NOT NULL,
+        product_id INT NOT NULL COMMENT '商品ID',
+        product_name VARCHAR(200) NOT NULL COMMENT '商品名称',
+        category VARCHAR(50) COMMENT '商品类别',
+        quantity INT NOT NULL DEFAULT 1,
+        unit_price DECIMAL(10, 2) NOT NULL,
+        subtotal DECIMAL(15, 2) NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (unified_order_id) REFERENCES unified_orders (unified_order_id) ON DELETE CASCADE,
+        KEY idx_unified_order_id (unified_order_id),
+        KEY idx_product_id (product_id),
+        KEY idx_category (category)
+    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '统一订单项详情表';
+
 -- 销量分析事实表 (按类别和时间维度)
 CREATE TABLE
     fact_sales_by_category_time (
@@ -65,6 +105,243 @@ CREATE TABLE
 -- =====================================================
 -- 示例数据 (初始化仓库)
 -- =====================================================
+-- 统一订单表 (V2: App + Web 聚合)
+INSERT INTO
+    unified_orders (
+        source,
+        app_order_id,
+        web_order_no,
+        user_id,
+        order_date,
+        total_amount,
+        status
+    )
+VALUES
+    -- App源订单 (11-20)
+    (
+        'APP',
+        1001,
+        NULL,
+        1,
+        '2024-01-15',
+        899.99,
+        'completed'
+    ),
+    (
+        'APP',
+        1002,
+        NULL,
+        2,
+        '2024-01-16',
+        599.99,
+        'completed'
+    ),
+    (
+        'APP',
+        1003,
+        NULL,
+        3,
+        '2024-01-17',
+        1899.97,
+        'completed'
+    ),
+    (
+        'APP',
+        1004,
+        NULL,
+        4,
+        '2024-01-18',
+        799.99,
+        'completed'
+    ),
+    (
+        'APP',
+        1005,
+        NULL,
+        5,
+        '2024-01-19',
+        1699.97,
+        'completed'
+    ),
+    -- Web源订单 (WEB-2024-001到010)
+    (
+        'WEB',
+        NULL,
+        'WEB-2024-001',
+        1,
+        '2024-01-15',
+        429.90,
+        'completed'
+    ),
+    (
+        'WEB',
+        NULL,
+        'WEB-2024-002',
+        2,
+        '2024-01-16',
+        899.99,
+        'completed'
+    ),
+    (
+        'WEB',
+        NULL,
+        'WEB-2024-003',
+        3,
+        '2024-01-17',
+        1999.97,
+        'completed'
+    ),
+    (
+        'WEB',
+        NULL,
+        'WEB-2024-004',
+        4,
+        '2024-01-18',
+        319.90,
+        'completed'
+    ),
+    (
+        'WEB',
+        NULL,
+        'WEB-2024-005',
+        5,
+        '2024-01-19',
+        1209.88,
+        'completed'
+    );
+
+-- 统一订单项 (APP订单项汇总)
+INSERT INTO
+    unified_order_items (
+        unified_order_id,
+        product_id,
+        product_name,
+        category,
+        quantity,
+        unit_price,
+        subtotal
+    )
+VALUES
+    (
+        1,
+        1,
+        'iPhone 15 Pro',
+        'Electronics',
+        1,
+        999.99,
+        999.99
+    ),
+    (
+        2,
+        2,
+        'MacBook Pro M3',
+        'Electronics',
+        1,
+        1999.99,
+        599.99
+    ),
+    (
+        3,
+        1,
+        'iPhone 15 Pro',
+        'Electronics',
+        1,
+        999.99,
+        999.99
+    ),
+    (3, 3, 'AirPods Pro', 'Audio', 1, 249.99, 249.99),
+    (
+        4,
+        2,
+        'MacBook Pro M3',
+        'Electronics',
+        1,
+        1999.99,
+        799.99
+    ),
+    (
+        5,
+        1,
+        'iPhone 15 Pro',
+        'Electronics',
+        1,
+        999.99,
+        999.99
+    ),
+    (
+        5,
+        4,
+        'iPad Air',
+        'Electronics',
+        1,
+        599.99,
+        599.99
+    ),
+    -- WEB订单项汇总
+    (
+        6,
+        5,
+        'Samsung Galaxy S24',
+        'Electronics',
+        1,
+        899.99,
+        899.99
+    ),
+    (
+        7,
+        6,
+        'Samsung Galaxy Buds Pro',
+        'Audio',
+        1,
+        229.99,
+        229.99
+    ),
+    (
+        8,
+        7,
+        'Samsung Galaxy Tab S9',
+        'Electronics',
+        1,
+        799.99,
+        799.99
+    ),
+    (
+        8,
+        8,
+        'Wireless Charger',
+        'Accessories',
+        1,
+        49.99,
+        49.99
+    ),
+    (
+        9,
+        5,
+        'Samsung Galaxy S24',
+        'Electronics',
+        1,
+        899.99,
+        899.99
+    ),
+    (
+        10,
+        7,
+        'Samsung Galaxy Tab S9',
+        'Electronics',
+        1,
+        799.99,
+        799.99
+    ),
+    (
+        10,
+        9,
+        'Screen Protector',
+        'Accessories',
+        1,
+        19.99,
+        19.99
+    );
+
 -- 销量数据汇总 (来自App + Web的合并)
 INSERT INTO
     fact_sales_by_category_time (
