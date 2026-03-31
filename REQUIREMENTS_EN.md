@@ -29,13 +29,13 @@ Build a data warehouse system that extracts data from two different business dat
 
 **Table Structure:** Same as App, but with different order table field names
 
-| Table Name          | Fields                                              | Description                                |
-| ------------------- | --------------------------------------------------- | ------------------------------------------ |
-| **users**           | user_id, name, email, city, register_date           | User table                                 |
-| **products**        | product_id, name, category, price, brand            | Product table                              |
-| **orders**          | order_no, user_id, order_date, total_amount, status | Order table (Note: field name differs)     |
-| **order_items**     | item_id, order_no, product_id, quantity, unit_price | Order details(Note: uses order_no)         |
-| **product_reviews** | review_id, product_id, user_id, rating, review_date | Product review table                       |
+| Table Name          | Fields                                              | Description                            |
+| ------------------- | --------------------------------------------------- | -------------------------------------- |
+| **users**           | user_id, name, email, city, register_date           | User table                             |
+| **products**        | product_id, name, category, price, brand            | Product table                          |
+| **orders**          | order_no, user_id, order_date, total_amount, status | Order table (Note: field name differs) |
+| **order_items**     | item_id, order_no, product_id, quantity, unit_price | Order details(Note: uses order_no)     |
+| **product_reviews** | review_id, product_id, user_id, rating, review_date | Product review table                   |
 
 **Data Format Characteristics:**
 

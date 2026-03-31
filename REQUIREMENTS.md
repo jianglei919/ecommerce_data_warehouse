@@ -29,13 +29,13 @@
 
 **表结构：** 与App相同，但订单表字段名不同
 
-| 表名                | 字段                                                | 说明                     |
-| ------------------- | --------------------------------------------------- | ------------------------ |
-| **users**           | user_id, name, email, city, register_date           | 用户表                   |
-| **products**        | product_id, name, category, price, brand            | 商品表                   |
-| **orders**          | order_no, user_id, order_date, total_amount, status | 订单表（注：字段名不同） |
+| 表名                | 字段                                                | 说明                         |
+| ------------------- | --------------------------------------------------- | ---------------------------- |
+| **users**           | user_id, name, email, city, register_date           | 用户表                       |
+| **products**        | product_id, name, category, price, brand            | 商品表                       |
+| **orders**          | order_no, user_id, order_date, total_amount, status | 订单表（注：字段名不同）     |
 | **order_items**     | item_id, order_no, product_id, quantity, unit_price | 订单明细表（注：用order_no） |
-| **product_reviews** | review_id, product_id, user_id, rating, review_date | 商品评论表               |
+| **product_reviews** | review_id, product_id, user_id, rating, review_date | 商品评论表                   |
 
 **数据格式特征：**
 
