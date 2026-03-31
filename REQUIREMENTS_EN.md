@@ -1,5 +1,15 @@
 # E-Commerce Data Warehouse - Business Requirements Document
 
+## Version Update History
+
+| Version       | Release Date | Key Changes                                                                                                                                         | Status      |
+| ------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| **Phase 4**   | 2026-03-31   | Docker deployment complete, all API tests passed, frontend application live, production environment verified                                        | ✅ Complete |
+| **V2**        | 2026-03-30   | Added unified order tables (unified_orders/unified_order_items), heterogeneous data aggregation, order management UI, cross-source data integration | ✅ Complete |
+| **Phase 1-3** | 2026-03-29   | Basic data warehouse design, two Fact tables, ETL process, API development, frontend dashboard                                                      | ✅ Complete |
+
+---
+
 ## Project Objective
 
 Build a data warehouse system that extracts data from two different business data sources (App and Web), performs data cleaning and ETL processing, and finally displays **sales analysis** and **product ratings ranking** data.
