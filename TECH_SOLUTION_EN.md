@@ -64,34 +64,34 @@ graph TB
         app["App Database<br/>MySQL 5.7+"]
         web["Web Database<br/>MySQL 5.7+"]
     end
-    
+
     subgraph event["Event-Driven Layer"]
         app_event["AppOrderService<br/>Publish Order Events"]
         web_event["WebOrderService<br/>Publish Order Events"]
         kafka["Kafka Message Queue<br/>Topic: order-events"]
     end
-    
+
     subgraph etl["ETL Processing Layer"]
         consumer["EventConsumer<br/>Consume Events"]
         transform["Data Transform<br/>Field/Type Unification"]
         validate["Data Validation<br/>Cleansing/Deduplication"]
     end
-    
+
     subgraph warehouse["Data Warehouse"]
         warehouse_db["ecommerce_warehouse<br/>MySQL 8.0"]
         fact_sales["fact_sales_by_category_time"]
         fact_top["fact_top_rated_products"]
     end
-    
+
     subgraph api["API Layer"]
         analytics_api["Analytics API<br/>REST"]
         export_api["Export API<br/>CSV/Excel"]
     end
-    
+
     subgraph frontend["Frontend Presentation"]
         dashboard["Vue 3 Dashboard<br/>Real-time Charts"]
     end
-    
+
     app --> app_event
     web --> web_event
     app_event --> kafka
@@ -106,7 +106,7 @@ graph TB
     warehouse_db --> export_api
     analytics_api --> dashboard
     export_api --> dashboard
-    
+
     style source fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
     style event fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
     style etl fill:#ffe0b2,stroke:#f57c00,stroke-width:2px
@@ -181,31 +181,31 @@ CompletionHandler (Post-Processing)
 
 ### Recommended Technology Stack
 
-| Layer | Component | Technology | Version | Rationale |
-|-------|-----------|-----------|---------|-----------|
-| **Backend Framework** | App Server | Spring Boot | 3.0+ | Mature, comprehensive ecosystem |
-| **ORM Framework** | Data Access | MyBatis-Plus | 3.5+ | Powerful, easy to learn |
-| **Message Queue** | Event Bus | Apache Kafka | 3.x | High throughput, reliability |
-| **Event Framework** | Event Processing | Spring Kafka | 3.0+ | Spring ecosystem integration |
-| **Caching** | Hot Data Cache | Redis | 7.0+ | Best performance (Optional) |
-| **Database** | Data Storage | MySQL | 8.0+ | Best reliability |
-| **Frontend Framework** | Web App | Vue 3 | 3.3+ | Easy to use, efficient |
-| **Charting Library** | Data Visualization | ECharts | 5.4+ | Feature-rich, royalty-free |
-| **UI Component Library** | UI Components | Ant Design Vue | 4.0+ | Enterprise-grade, rich components |
-| **Containerization** | Deployment Tool | Docker | 24.0+ | Standardized deployment |
-| **Orchestration Tool** | Container Management | Docker Compose | 2.20+ | Easy local deployment |
+| Layer                    | Component            | Technology     | Version | Rationale                         |
+| ------------------------ | -------------------- | -------------- | ------- | --------------------------------- |
+| **Backend Framework**    | App Server           | Spring Boot    | 3.0+    | Mature, comprehensive ecosystem   |
+| **ORM Framework**        | Data Access          | MyBatis-Plus   | 3.5+    | Powerful, easy to learn           |
+| **Message Queue**        | Event Bus            | Apache Kafka   | 3.x     | High throughput, reliability      |
+| **Event Framework**      | Event Processing     | Spring Kafka   | 3.0+    | Spring ecosystem integration      |
+| **Caching**              | Hot Data Cache       | Redis          | 7.0+    | Best performance (Optional)       |
+| **Database**             | Data Storage         | MySQL          | 8.0+    | Best reliability                  |
+| **Frontend Framework**   | Web App              | Vue 3          | 3.3+    | Easy to use, efficient            |
+| **Charting Library**     | Data Visualization   | ECharts        | 5.4+    | Feature-rich, royalty-free        |
+| **UI Component Library** | UI Components        | Ant Design Vue | 4.0+    | Enterprise-grade, rich components |
+| **Containerization**     | Deployment Tool      | Docker         | 24.0+   | Standardized deployment           |
+| **Orchestration Tool**   | Container Management | Docker Compose | 2.20+   | Easy local deployment             |
 
 ### Message Queue Comparison
 
-| Comparison | Kafka | RabbitMQ | Redis | ActiveMQ |
-|-----------|-------|----------|-------|----------|
-| Throughput | Ultra-high (1M+/s) | Medium (10K/s) | High (100K/s) | Medium (10K/s) |
-| Latency | Millisecond | Microsecond | Microsecond | Millisecond |
-| Reliability | High (Replication) | Ultra-high | Medium | High |
-| Persistence | Disk Storage | Memory + Persistence | Memory-primary | Supported |
-| Learning Curve | Medium | Low | Low | Medium |
-| Recommendation | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ |
-| Selection Reason | ✅ High throughput, scalable consumers | Rich features but overkill | Use for caching only | Obsolete |
+| Comparison       | Kafka                                  | RabbitMQ                   | Redis                | ActiveMQ       |
+| ---------------- | -------------------------------------- | -------------------------- | -------------------- | -------------- |
+| Throughput       | Ultra-high (1M+/s)                     | Medium (10K/s)             | High (100K/s)        | Medium (10K/s) |
+| Latency          | Millisecond                            | Microsecond                | Microsecond          | Millisecond    |
+| Reliability      | High (Replication)                     | Ultra-high                 | Medium               | High           |
+| Persistence      | Disk Storage                           | Memory + Persistence       | Memory-primary       | Supported      |
+| Learning Curve   | Medium                                 | Low                        | Low                  | Medium         |
+| Recommendation   | ⭐⭐⭐⭐⭐                             | ⭐⭐⭐⭐                   | ⭐⭐⭐               | ⭐⭐⭐         |
+| Selection Reason | ✅ High throughput, scalable consumers | Rich features but overkill | Use for caching only | Obsolete       |
 
 ---
 
@@ -221,7 +221,7 @@ CompletionHandler (Post-Processing)
 public class AppOrderService {
     @Autowired
     private OrderRepository orderRepository;
-    
+
     public Order createOrder(Order order) {
         return orderRepository.save(order);
     }
@@ -233,14 +233,14 @@ public class AppOrderService {
 public class AppOrderService {
     @Autowired
     private OrderRepository orderRepository;
-    
+
     @Autowired
     private KafkaTemplate<String, OrderEvent> kafkaTemplate;
-    
+
     public Order createOrder(Order order) {
         // 1. Save to local database
         Order savedOrder = orderRepository.save(order);
-        
+
         // 2. Publish event to Kafka
         OrderEvent event = new OrderEvent(
             "ORDER_CREATED",
@@ -248,16 +248,16 @@ public class AppOrderService {
             "APP",
             LocalDateTime.now()
         );
-        kafkaTemplate.send("order-events", 
-            String.valueOf(savedOrder.getOrderId()), 
+        kafkaTemplate.send("order-events",
+            String.valueOf(savedOrder.getOrderId()),
             event);
-        
+
         return savedOrder;
     }
-    
+
     public Order updateOrder(Order order) {
         Order updated = orderRepository.save(order);
-        
+
         // Publish update event
         OrderEvent event = new OrderEvent(
             "ORDER_UPDATED",
@@ -268,7 +268,7 @@ public class AppOrderService {
         kafkaTemplate.send("order-events",
             String.valueOf(updated.getOrderId()),
             event);
-        
+
         return updated;
     }
 }
@@ -281,23 +281,23 @@ public class AppOrderService {
 public class WebOrderService {
     @Autowired
     private OrderRepository orderRepository;
-    
+
     @Autowired
     private KafkaTemplate<String, OrderEvent> kafkaTemplate;
-    
+
     public Order createOrder(Order order) {
         Order savedOrder = orderRepository.save(order);
-        
+
         OrderEvent event = new OrderEvent(
             "ORDER_CREATED",
             savedOrder,
             "WEB",
             LocalDateTime.now()
         );
-        kafkaTemplate.send("order-events", 
-            savedOrder.getOrderNo(), 
+        kafkaTemplate.send("order-events",
+            savedOrder.getOrderNo(),
             event);
-        
+
         return savedOrder;
     }
     // ... similar updateOrder method
@@ -314,7 +314,7 @@ public class OrderEvent {
     private Order order;
     private String source;           // APP or WEB
     private LocalDateTime timestamp;
-    
+
     // For serialization
     public static OrderEvent fromJson(String json) {
         return JsonUtils.parse(json, OrderEvent.class);
@@ -330,13 +330,13 @@ public class OrderEvent {
 # application.yml
 kafka:
   bootstrap-servers: localhost:9092
-  
+
   producer:
     key-serializer: org.apache.kafka.common.serialization.StringSerializer
     value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     acks: all
     retries: 3
-    
+
   consumer:
     bootstrap-servers: localhost:9092
     group-id: warehouse-etl-consumer
@@ -345,7 +345,7 @@ kafka:
     properties:
       spring.json.trusted.packages: "*"
     max-poll-records: 100
-    
+
   topics:
     order-events: order-events
     partitions: 3
@@ -371,22 +371,22 @@ kafka-topics.sh --create \
 ```java
 @Service
 public class WarehouseETLConsumer {
-    
+
     @Autowired
     private WarehouseService warehouseService;
-    
+
     @Autowired
     private OrderTransformer orderTransformer;
-    
+
     @Autowired
     private OrderValidator orderValidator;
-    
+
     @Autowired
     private WarehouseLoader warehouseLoader;
-    
+
     @Autowired
     private SyncLogMapper syncLogMapper;
-    
+
     // Consume order events
     @KafkaListener(
         topics = "order-events",
@@ -399,34 +399,34 @@ public class WarehouseETLConsumer {
         @Headers(KafkaHeaders.OFFSET) long offset
     ) {
         try {
-            log.info("Consuming order event: {} from partition {}, offset {}", 
+            log.info("Consuming order event: {} from partition {}, offset {}",
                 event.getEventType(), partition, offset);
-            
+
             // 1. Extract and transform
             UnifiedOrder unifiedOrder = orderTransformer.transform(event);
-            
+
             // 2. Validate
             if (!orderValidator.validate(unifiedOrder)) {
                 log.error("Order validation failed: {}", unifiedOrder);
                 recordSyncLog(event, "VALIDATION_FAILED");
                 return;
             }
-            
+
             // 3. Load to warehouse
             warehouseLoader.load(unifiedOrder);
-            
+
             // 4. Record sync log
             recordSyncLog(event, "SUCCESS");
-            
+
             // 5. Send notification (Optional)
             notifySync(event);
-            
+
         } catch (Exception e) {
             log.error("Error processing order event", e);
             recordSyncLog(event, "ERROR: " + e.getMessage());
         }
     }
-    
+
     private void recordSyncLog(OrderEvent event, String status) {
         SyncLog log = new SyncLog();
         log.setEventType(event.getEventType());
@@ -444,14 +444,14 @@ public class WarehouseETLConsumer {
 ```java
 @Component
 public class OrderTransformer {
-    
+
     /**
      * Transform raw order event to unified format
      */
     public UnifiedOrder transform(OrderEvent event) {
         Order sourceOrder = event.getOrder();
         UnifiedOrder unified = new UnifiedOrder();
-        
+
         // Handle order ID (Key transformation)
         if ("APP".equals(event.getSource())) {
             // App: INT → VARCHAR
@@ -462,7 +462,7 @@ public class OrderTransformer {
             unified.setOrderId(sourceOrder.getOrderNo());
             unified.setSource("WEB");
         }
-        
+
         // Handle date format
         if ("APP".equals(event.getSource())) {
             // App already yyyy-MM-dd, use directly
@@ -475,13 +475,13 @@ public class OrderTransformer {
             );
             unified.setOrderDate(parsedDate);
         }
-        
+
         // Map other fields
         unified.setUserId(sourceOrder.getUserId());
         unified.setTotalAmount(sourceOrder.getTotalAmount());
         unified.setStatus(sourceOrder.getStatus());
         unified.setEventTimestamp(event.getTimestamp());
-        
+
         return unified;
     }
 }
@@ -492,40 +492,40 @@ public class OrderTransformer {
 ```java
 @Component
 public class OrderValidator {
-    
+
     public boolean validate(UnifiedOrder order) {
         // 1. Required field check
         if (order.getOrderId() == null || order.getOrderId().trim().isEmpty()) {
             log.error("Order ID is empty");
             return false;
         }
-        
+
         if (order.getUserId() == null) {
             log.error("User ID is empty");
             return false;
         }
-        
+
         // 2. Amount validation
         if (order.getTotalAmount() == null || order.getTotalAmount().compareTo(BigDecimal.ZERO) < 0) {
             log.error("Invalid order amount: {}", order.getTotalAmount());
             return false;
         }
-        
+
         // 3. Date validation
         if (order.getOrderDate() == null) {
             log.error("Order date is empty");
             return false;
         }
-        
+
         // 4. Deduplication check
         if (isDuplicate(order)) {
             log.warn("Duplicate order detected: {}", order.getOrderId());
             return true; // Allow but mark as duplicate
         }
-        
+
         return true;
     }
-    
+
     private boolean isDuplicate(UnifiedOrder order) {
         // Check if order exists in warehouse
         Integer count = warehouseMapper.countByOrderId(order.getOrderId());
@@ -539,19 +539,19 @@ public class OrderValidator {
 ```java
 @Component
 public class WarehouseLoader {
-    
+
     @Autowired
     private SalesFactMapper salesFactMapper;
-    
+
     @Autowired
     private ProductFactMapper productFactMapper;
-    
+
     public void load(UnifiedOrder order) {
         // Process order items (row-level data)
         for (OrderItem item : order.getItems()) {
             loadSalesFact(order, item);
         }
-        
+
         // Process reviews (if any)
         if (order.getReviews() != null) {
             for (Review review : order.getReviews()) {
@@ -559,13 +559,13 @@ public class WarehouseLoader {
             }
         }
     }
-    
+
     /**
      * Load sales fact table
      */
     private void loadSalesFact(UnifiedOrder order, OrderItem item) {
         LocalDate orderDate = order.getOrderDate();
-        
+
         SalesFactByCategory fact = new SalesFactByCategory();
         fact.setCategory(item.getProduct().getCategory());
         fact.setYear(orderDate.getYear());
@@ -575,17 +575,17 @@ public class WarehouseLoader {
         fact.setSalesAmount(item.getUnitPrice().multiply(
             new BigDecimal(item.getQuantity())
         ));
-        
+
         // Use upsert logic
         salesFactMapper.upsert(fact);
     }
-    
+
     /**
      * Load product fact table
      */
     private void loadProductFact(Review review) {
         LocalDate reviewDate = review.getReviewDate();
-        
+
         // Calculate product average rating and review count
         AggregatedReview agg = productFactMapper.aggregateReviews(
             review.getProductId(),
@@ -593,7 +593,7 @@ public class WarehouseLoader {
             reviewDate.getMonthValue(),
             reviewDate.getDayOfMonth()
         );
-        
+
         ProductFactTopRated fact = new ProductFactTopRated();
         fact.setProductId(review.getProductId());
         fact.setProductName(review.getProduct().getName());
@@ -603,7 +603,7 @@ public class WarehouseLoader {
         fact.setYear(reviewDate.getYear());
         fact.setMonth(reviewDate.getMonthValue());
         fact.setDay(reviewDate.getDayOfMonth());
-        
+
         productFactMapper.upsert(fact);
     }
 }
@@ -671,10 +671,10 @@ CREATE TABLE sync_log (
 @RestController
 @RequestMapping("/api/analytics")
 public class AnalyticsController {
-    
+
     @Autowired
     private AnalyticsService analyticsService;
-    
+
     /**
      * Get sales analytics data
      */
@@ -690,7 +690,7 @@ public class AnalyticsController {
         );
         return ResponseEntity.ok(result);
     }
-    
+
     /**
      * Get top products ranking
      */
@@ -706,7 +706,7 @@ public class AnalyticsController {
         );
         return ResponseEntity.ok(result);
     }
-    
+
     /**
      * Export data as CSV
      */
@@ -716,13 +716,13 @@ public class AnalyticsController {
         @RequestParam(required = false) Integer year
     ) throws IOException {
         response.setContentType("text/csv;charset=UTF-8");
-        response.setHeader("Content-Disposition", 
+        response.setHeader("Content-Disposition",
             "attachment;filename=sales_data.csv");
-        
+
         List<SalesAnalysis> data = analyticsService.querySalesAnalytics(
             null, year, null, null
         );
-        
+
         String csv = analyticsService.convertToCSV(data);
         response.getWriter().write(csv);
     }
@@ -730,13 +730,13 @@ public class AnalyticsController {
 
 @Service
 public class AnalyticsService {
-    
+
     @Autowired
     private SalesFactMapper salesFactMapper;
-    
+
     @Autowired
     private ProductFactMapper productFactMapper;
-    
+
     public List<SalesAnalysis> querySalesAnalytics(
         String category, Integer year, Integer month, Integer day
     ) {
@@ -744,7 +744,7 @@ public class AnalyticsService {
             category, year, month, day
         );
     }
-    
+
     public List<TopProductAnalysis> queryTopProducts(
         String category, Integer year, Integer month, Integer limit
     ) {
@@ -769,13 +769,13 @@ public class AnalyticsService {
         <RangeSelector v-model="dateRange" />
         <CategoryFilter v-model="selectedCategory" />
       </div>
-      
+
       <div class="charts">
         <Heatmap :data="salesHeatmapData" />
         <BarChart :data="salesBarChartData" />
       </div>
     </div>
-    
+
     <!-- Top Products Ranking -->
     <div class="products-section">
       <ProductRankingTable
@@ -783,7 +783,7 @@ public class AnalyticsService {
         :loading="loading"
       />
     </div>
-    
+
     <!-- Real-Time Sync Status -->
     <div class="sync-status">
       <SyncMonitor :status="syncStatus" />
@@ -807,7 +807,7 @@ const wsService = new WebSocketService()
 onMounted(() => {
   // Initial data load
   loadAnalyticsData()
-  
+
   // Subscribe to real-time updates
   wsService.subscribe('/topic/warehouse-updates', (event) => {
     syncStatus.value = event
@@ -820,7 +820,7 @@ const loadAnalyticsData = async () => {
   const sales = await AnalyticsAPI.getSalesAnalytics()
   salesHeatmapData.value = transformToHeatmap(sales)
   salesBarChartData.value = transformToBarChart(sales)
-  
+
   const products = await AnalyticsAPI.getTopProducts()
   topProducts.value = products
 }
@@ -866,13 +866,13 @@ OrderEvent (JSON)      OrderEvent (JSON)
 
 ### Key Features
 
-| Feature | Description | Benefit |
-|---------|-------------|---------|
-| **Event-Driven** | Business system publishes events immediately upon data changes | Zero latency perception |
-| **Message Queue Decoupling** | Kafka acts as event bus | Loose coupling between systems |
-| **Scalable Consumers** | Multiple independent consumers | Easy to add new requirements |
-| **Concurrent Processing** | 3 partitions concurrent consumption | High throughput capability |
-| **Real-Time Notifications** | WebSocket push to frontend | Instant user feedback |
+| Feature                      | Description                                                    | Benefit                        |
+| ---------------------------- | -------------------------------------------------------------- | ------------------------------ |
+| **Event-Driven**             | Business system publishes events immediately upon data changes | Zero latency perception        |
+| **Message Queue Decoupling** | Kafka acts as event bus                                        | Loose coupling between systems |
+| **Scalable Consumers**       | Multiple independent consumers                                 | Easy to add new requirements   |
+| **Concurrent Processing**    | 3 partitions concurrent consumption                            | High throughput capability     |
+| **Real-Time Notifications**  | WebSocket push to frontend                                     | Instant user feedback          |
 
 ### End-to-End Latency Analysis
 
@@ -918,7 +918,7 @@ Failure Recovery:
 ### Docker Compose Configuration
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   # Kafka
@@ -1172,21 +1172,21 @@ docker-compose -f docker-compose.prod.yml up -d
 
 ### Technical Risks
 
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|-----------  |
-| **Kafka Message Loss** | Data out of sync | Medium | ✅ Configure replication factor=3, ACK=all |
-| **Consumer Lag** | Slow warehouse updates | Low | ✅ Increase consumer concurrency |
-| **Database Performance** | Slow writes | Medium | ✅ Optimize indexes, batch inserts |
-| **Network Partition** | Kafka split | Low | ✅ Cluster monitoring and alerts |
-| **Duplicate Consumption** | Data duplication | Medium | ✅ Implement idempotency or deduplication |
+| Risk                      | Impact                 | Probability | Mitigation                                 |
+| ------------------------- | ---------------------- | ----------- | ------------------------------------------ |
+| **Kafka Message Loss**    | Data out of sync       | Medium      | ✅ Configure replication factor=3, ACK=all |
+| **Consumer Lag**          | Slow warehouse updates | Low         | ✅ Increase consumer concurrency           |
+| **Database Performance**  | Slow writes            | Medium      | ✅ Optimize indexes, batch inserts         |
+| **Network Partition**     | Kafka split            | Low         | ✅ Cluster monitoring and alerts           |
+| **Duplicate Consumption** | Data duplication       | Medium      | ✅ Implement idempotency or deduplication  |
 
 ### Business Risks
 
-| Risk | Impact | Mitigation |
-|------|--------|-----------|
+| Risk                                      | Impact               | Mitigation                                      |
+| ----------------------------------------- | -------------------- | ----------------------------------------------- |
 | **Source System Modification Difficulty** | Implementation delay | Early communication, provide modification guide |
-| **Data Format Incompatibility** | ETL failures | Thorough testing, reserved compatibility fields |
-| **Low User Adoption** | Project failure | Regular demos, collect feedback |
+| **Data Format Incompatibility**           | ETL failures         | Thorough testing, reserved compatibility fields |
+| **Low User Adoption**                     | Project failure      | Regular demos, collect feedback                 |
 
 ### Emergency Plans
 
@@ -1238,11 +1238,11 @@ If real-time performance degrades:
 - alert: KafkaLagTooHigh
   expr: kafka_consumer_lag > 10000
   for: 5m
-  
+
 - alert: ETLProcessTimeHigh
   expr: etl_process_time_ms > 5000
   for: 10m
-  
+
 - alert: WarehouseSyncFailureRate
   expr: rate(etl_failures_total[5m]) > 0.01
   for: 5m
@@ -1258,7 +1258,7 @@ If real-time performance degrades:
 ✅ **Real-Time Sync Capability** - Sub-second data latency  
 ✅ **High Availability Design** - Multi-replica auto-failover  
 ✅ **Scalable Framework** - Easy to add data sources or consumers  
-✅ **Complete Monitoring** - Operational visibility and debugging  
+✅ **Complete Monitoring** - Operational visibility and debugging
 
 ### Future Optimization Directions
 
