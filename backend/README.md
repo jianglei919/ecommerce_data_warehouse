@@ -333,7 +333,7 @@ du -sh ./backend
 
 ## 更新日志
 
-### v1.0.0 (2024-01-15)
+### v1.0.0 (2026-03-30)
 
 - ✅ 完整的 Kafka 消费者实现
 - ✅ 多数据源配置支持
@@ -345,4 +345,4 @@ du -sh ./backend
 
 **作者**: University of Windsor eCommerce Team  
 **维护**: Infrastructure & Data Engineering  
-**最后更新**: 2024-01-15
+**最后更新**: 2026-03-30

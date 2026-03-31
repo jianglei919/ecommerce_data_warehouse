@@ -447,7 +447,7 @@ MIT License - 用于教学目的
 
 ## 最后更新
 
-2024-01-15
+2026-03-30
 
 ---
 
@@ -457,48 +457,48 @@ MIT License - 用于教学目的
 - API Docs: http://localhost:8080/api/analytics/health
 - 项目文档: 见 `/docs` 目录
 
-##  查询示例Query example
+## 查询示例Query example
+
 1.Roll up
 
 //roll up info from day to month
 
 SELECT
-    category,
-    year,
-    month,
-    SUM(total_quantity) AS monthly_qty,
-    SUM(total_sales_amount) AS monthly_sales
+category,
+year,
+month,
+SUM(total_quantity) AS monthly_qty,
+SUM(total_sales_amount) AS monthly_sales
 FROM fact_sales_by_category_time
 GROUP BY category, year, month
 ORDER BY year, month, category;
 
 2. Drill down
-//Looking at Electronics' full-year sales figures for 2024, drill down to day
+   //Looking at Electronics' full-year sales figures for 2024, drill down to day
 
 SELECT
-    category,
-    year,
-    month,
-    day,
-    total_quantity,
-    total_sales_amount
+category,
+year,
+month,
+day,
+total_quantity,
+total_sales_amount
 FROM fact_sales_by_category_time
 WHERE category = 'Electronics'
-  AND year = 2024
-  AND month = 3
+AND year = 2024
+AND month = 3
 ORDER BY day;
-
 
 3. Slice
 
 //Looking only at the sales trends of the Clothing category.
 
 SELECT
-    year,
-    month,
-    day,
-    total_quantity,
-    total_sales_amount
+year,
+month,
+day,
+total_quantity,
+total_sales_amount
 FROM fact_sales_by_category_time
 WHERE category = 'Clothing'
 ORDER BY year, month, day;
@@ -508,44 +508,42 @@ ORDER BY year, month, day;
 //Look at the data for Electronics and Clothing between March and April 2024.
 
 SELECT
-    category,
-    year,
-    month,
-    SUM(total_quantity) AS qty,
-    SUM(total_sales_amount) AS sales
+category,
+year,
+month,
+SUM(total_quantity) AS qty,
+SUM(total_sales_amount) AS sales
 FROM fact_sales_by_category_time
 WHERE year = 2024
-  AND month IN (3, 4)
-  AND category IN ('Electronics', 'Clothing')
+AND month IN (3, 4)
+AND category IN ('Electronics', 'Clothing')
 GROUP BY category, year, month
 ORDER BY month, category;
-
 
 5. Pivot
 
 //Display monthly sales figures for different categories side-by-side.
 
 SELECT
-    year,
-    month,
-    SUM(CASE WHEN category = 'Electronics' THEN total_sales_amount ELSE 0 END) AS electronics_sales,
-    SUM(CASE WHEN category = 'Clothing' THEN total_sales_amount ELSE 0 END) AS clothing_sales,
-    SUM(CASE WHEN category = 'Home' THEN total_sales_amount ELSE 0 END) AS home_sales
+year,
+month,
+SUM(CASE WHEN category = 'Electronics' THEN total_sales_amount ELSE 0 END) AS electronics_sales,
+SUM(CASE WHEN category = 'Clothing' THEN total_sales_amount ELSE 0 END) AS clothing_sales,
+SUM(CASE WHEN category = 'Home' THEN total_sales_amount ELSE 0 END) AS home_sales
 FROM fact_sales_by_category_time
 GROUP BY year, month
 ORDER BY year, month;
 
-
-6. Ranking 
+6. Ranking
 
 //Check the top 10 products with the highest ratings.
 
 SELECT
-    product_id,
-    product_name,
-    category,
-    avg_rating,
-    review_count
+product_id,
+product_name,
+category,
+avg_rating,
+review_count
 FROM fact_top_rated_products
 ORDER BY avg_rating DESC, review_count DESC
 LIMIT 10;
@@ -555,13 +553,10 @@ LIMIT 10;
 //View the monthly trend of a specific category.
 
 SELECT
-    year,
-    month,
-    SUM(total_sales_amount) AS monthly_sales
+year,
+month,
+SUM(total_sales_amount) AS monthly_sales
 FROM fact_sales_by_category_time
 WHERE category = 'Electronics'
 GROUP BY year, month
 ORDER BY year, month;
-
-
-
