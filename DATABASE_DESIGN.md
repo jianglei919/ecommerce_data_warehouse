@@ -397,3 +397,339 @@ GROUP BY p.category, year, month, day;
 
 - `fact_sales_by_category_time(category, year, month, day)` - 多维度聚合
 - `fact_top_rated_products(avg_rating DESC)` - 排行榜查询
+
+---
+
+# V2 阶段 - 统一订单表设计
+
+## V2 设计背景
+
+为了解决App和Web订单渠道异构性问题，实现高效的订单查询和聚合分析，V2阶段设计了**统一订单表**（unified_orders）和**统一订单明细表**（unified_order_items）。该设计在仓库层直接提供App+Web订单的统一视图，无需ETL进行复杂的UNION操作，提升查询性能。
+
+### V2 核心改进
+
+| 方面         | Phase 4 (原设计)           | V2 (新设计)                |
+| ------------ | -------------------------- | -------------------------- |
+| **订单查询** | 需要UNION App和Web两源数据 | 直接查询unified_orders表   |
+| **查询性能** | 较慢（两个源表UNION）      | 快速（单表查询+简单JOIN）  |
+| **数据去重** | 需要应用层处理             | 国提供已去重、已聚合的数据 |
+| **异构处理** | 转换后分别存储             | 统一格式存储，开箱即用     |
+| **用户体验** | 复杂的数据聚合逻辑         | 简单直观的统一订单视图     |
+
+---
+
+## V2 表结构设计
+
+### 统一订单表 (unified_orders)
+
+将App和Web的订单数据统一存储在一个表中，通过`source`字段区分渠道。
+
+```sql
+CREATE TABLE unified_orders (
+    -- 主键
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT '统一订单主键',
+
+    -- 渠道识别
+    source ENUM('APP', 'WEB') NOT NULL COMMENT '订单来源（APP/WEB）',
+
+    -- 原始订单ID（存储原渠道的订单号）
+    app_order_id INT COMMENT 'App渠道订单ID（如source=APP则不为空）',
+    web_order_no VARCHAR(50) COMMENT 'Web渠道订单号（如source=WEB则不为空）',
+
+    -- 用户信息
+    user_id INT NOT NULL COMMENT '用户ID',
+    user_name VARCHAR(100) COMMENT '用户名称',
+    user_email VARCHAR(100) COMMENT '用户邮箱',
+    user_phone VARCHAR(20) COMMENT '用户联系电话',
+    user_city VARCHAR(50) COMMENT '用户所在城市',
+
+    -- 订单信息
+    order_date DATE NOT NULL COMMENT '订单日期（统一格式：yyyy-MM-dd）',
+    total_amount DECIMAL(12,2) NOT NULL COMMENT '订单总金额',
+    status VARCHAR(20) DEFAULT 'completed' COMMENT '订单状态（completed/pending/cancelled）',
+
+    -- 商品统计
+    item_count INT DEFAULT 0 COMMENT '订单包含商品数量',
+    total_quantity INT DEFAULT 0 COMMENT '订单包含商品总件数',
+
+    -- 元数据
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '记录更新时间',
+
+    -- 唯一性约束（确保不重复聚合）
+    UNIQUE KEY uniq_order_source (source, app_order_id, web_order_no),
+
+    -- 索引优化
+    INDEX idx_source (source),
+    INDEX idx_order_date (order_date),
+    INDEX idx_user_id (user_id),
+    INDEX idx_source_date (source, order_date),
+    INDEX idx_status (status)
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='V2阶段：App+Web统一订单表';
+```
+
+### 统一订单明细表 (unified_order_items)
+
+存储统一订单下的每条商品明细。
+
+```sql
+CREATE TABLE unified_order_items (
+    -- 主键
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT '订单明细主键',
+
+    -- 关联关系
+    unified_order_id INT NOT NULL COMMENT '关联到unified_orders.id',
+
+    -- 源数据ID
+    source ENUM('APP', 'WEB') NOT NULL COMMENT '订单来源（用于追溯原始记录）',
+    app_item_id INT COMMENT 'App端原始item_id',
+    web_item_id INT COMMENT 'Web端原始item_id',
+
+    -- 商品信息
+    product_id INT NOT NULL COMMENT '商品ID',
+    product_name VARCHAR(200) COMMENT '商品名称',
+    category VARCHAR(50) COMMENT '商品分类',
+    brand VARCHAR(50) COMMENT '商品品牌',
+
+    -- 订单明细数据
+    quantity INT NOT NULL COMMENT '购买数量',
+    unit_price DECIMAL(10,2) NOT NULL COMMENT '单价',
+    line_total DECIMAL(12,2) NOT NULL COMMENT '小计（数量*单价）',
+
+    -- 元数据
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
+
+    -- 外键关联
+    FOREIGN KEY (unified_order_id) REFERENCES unified_orders(id) ON DELETE CASCADE,
+
+    -- 索引优化
+    INDEX idx_unified_order_id (unified_order_id),
+    INDEX idx_source (source),
+    INDEX idx_product_id (product_id),
+    INDEX idx_category (category)
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='V2阶段：统一订单明细表';
+```
+
+---
+
+## V2 数据加载策略
+
+### 初始数据加载
+
+统一订单表通过以下方式从源数据初始化：
+
+**第1步：从App源加载**
+
+```sql
+INSERT INTO unified_orders (
+    source, app_order_id, web_order_no,
+    user_id, user_name, user_email, user_phone, user_city,
+    order_date, total_amount, status, item_count, total_quantity
+)
+SELECT
+    'APP' as source,
+    o.order_id as app_order_id,
+    NULL as web_order_no,
+    o.user_id,
+    u.name as user_name,
+    u.email as user_email,
+    u.phone as user_phone,
+    u.city as user_city,
+    o.order_date,
+    o.total_amount,
+    o.status,
+    COUNT(oi.item_id) as item_count,
+    SUM(oi.quantity) as total_quantity
+FROM ecommerce_source_app.orders o
+JOIN ecommerce_source_app.users u ON o.user_id = u.user_id
+LEFT JOIN ecommerce_source_app.order_items oi ON o.order_id = oi.order_id
+WHERE o.status = 'completed'
+GROUP BY o.order_id;
+```
+
+**第2步：从Web源加载**
+
+```sql
+INSERT INTO unified_orders (
+    source, app_order_id, web_order_no,
+    user_id, user_name, user_email, user_phone, user_city,
+    order_date, total_amount, status, item_count, total_quantity
+)
+SELECT
+    'WEB' as source,
+    NULL as app_order_id,
+    o.order_no as web_order_no,
+    o.user_id,
+    u.name as user_name,
+    u.email as user_email,
+    u.phone as user_phone,
+    u.city as user_city,
+    STR_TO_DATE(o.order_date, '%m/%d/%Y') as order_date,
+    o.total_amount,
+    o.status,
+    COUNT(oi.item_id) as item_count,
+    SUM(oi.quantity) as total_quantity
+FROM ecommerce_source_web.orders o
+JOIN ecommerce_source_web.users u ON o.user_id = u.user_id
+LEFT JOIN ecommerce_source_web.order_items oi ON o.order_no = oi.order_no
+WHERE o.status = 'completed'
+GROUP BY o.order_no;
+```
+
+**第3步：加载订单明细**
+
+```sql
+-- App端订单明细
+INSERT INTO unified_order_items (
+    unified_order_id, source, app_item_id, web_item_id,
+    product_id, product_name, category, brand,
+    quantity, unit_price, line_total
+)
+SELECT
+    uo.id,
+    'APP' as source,
+    oi.item_id as app_item_id,
+    NULL as web_item_id,
+    oi.product_id,
+    p.name as product_name,
+    p.category,
+    p.brand,
+    oi.quantity,
+    oi.unit_price,
+    oi.line_total
+FROM unified_orders uo
+JOIN ecommerce_source_app.order_items oi ON uo.app_order_id = oi.order_id
+JOIN ecommerce_source_app.products p ON oi.product_id = p.product_id
+WHERE uo.source = 'APP';
+
+-- Web端订单明细
+INSERT INTO unified_order_items (
+    unified_order_id, source, app_item_id, web_item_id,
+    product_id, product_name, category, brand,
+    quantity, unit_price, line_total
+)
+SELECT
+    uo.id,
+    'WEB' as source,
+    NULL as app_item_id,
+    oi.item_id as web_item_id,
+    oi.product_id,
+    p.name as product_name,
+    p.category,
+    p.brand,
+    oi.quantity,
+    oi.unit_price,
+    oi.line_total
+FROM unified_orders uo
+JOIN ecommerce_source_web.order_items oi ON uo.web_order_no = oi.order_no
+JOIN ecommerce_source_web.products p ON oi.product_id = p.product_id
+WHERE uo.source = 'WEB';
+```
+
+---
+
+## V2 查询示例
+
+### 1. 获取所有统一订单（分页）
+
+```sql
+SELECT
+    id, source, app_order_id, web_order_no,
+    user_id, user_name, order_date,
+    total_amount, status, item_count
+FROM unified_orders
+WHERE status = 'completed'
+ORDER BY order_date DESC
+LIMIT 20 OFFSET 0;
+```
+
+### 2. 获取特定订单详情（含订单明细）
+
+```sql
+SELECT
+    o.id, o.source, o.user_name, o.order_date, o.total_amount,
+    i.product_name, i.category, i.quantity, i.unit_price, i.line_total
+FROM unified_orders o
+LEFT JOIN unified_order_items i ON o.id = i.unified_order_id
+WHERE o.id = 1
+ORDER BY i.id;
+```
+
+### 3. 统计App vs Web订单数据
+
+```sql
+SELECT
+    source,
+    COUNT(*) as order_count,
+    SUM(total_amount) as total_sales,
+    AVG(total_amount) as avg_order_value,
+    SUM(item_count) as total_items
+FROM unified_orders
+WHERE status = 'completed'
+GROUP BY source;
+```
+
+### 4. 按商品分类统计
+
+```sql
+SELECT
+    i.category,
+    o.source,
+    COUNT(DISTINCT o.id) as order_count,
+    SUM(i.quantity) as total_quantity,
+    SUM(i.line_total) as total_sales
+FROM unified_orders o
+JOIN unified_order_items i ON o.id = i.unified_order_id
+WHERE o.status = 'completed'
+GROUP BY i.category, o.source
+ORDER BY total_sales DESC;
+```
+
+### 5. 订单日期统计
+
+```sql
+SELECT
+    DATE_FORMAT(order_date, '%Y-%m-%d') as date,
+    source,
+    COUNT(*) as order_count,
+    SUM(total_amount) as daily_sales
+FROM unified_orders
+WHERE status = 'completed'
+GROUP BY DATE_FORMAT(order_date, '%Y-%m-%d'), source
+ORDER BY date DESC;
+```
+
+---
+
+## V2 索引优化策略
+
+| 索引              | 目的                  | 查询模式                            |
+| ----------------- | --------------------- | ----------------------------------- |
+| `idx_source`      | 按渠道筛选            | WHERE source = 'APP'                |
+| `idx_order_date`  | 按日期排序和范围查询  | WHERE order_date BETWEEN ...        |
+| `idx_user_id`     | 查询用户订单          | WHERE user_id = ?                   |
+| `idx_source_date` | 复合筛选（渠道+日期） | WHERE source = ? AND order_date > ? |
+| `idx_status`      | 按状态筛选            | WHERE status = 'completed'          |
+
+**unified_order_items表索引**：
+
+| 索引                   | 目的         | 查询模式                     |
+| ---------------------- | ------------ | ---------------------------- |
+| `idx_unified_order_id` | 订单明细JOIN | ON o.id = i.unified_order_id |
+| `idx_source`           | 溯源原始记录 | WHERE source = 'APP'/WEB'    |
+| `idx_product_id`       | 商品维度分析 | WHERE product_id = ?         |
+| `idx_category`         | 分类统计分析 | GROUP BY category            |
+
+---
+
+## V2 与Phase 4 的关系
+
+- **Phase 4**: 设计了3个源数据库（App、Web、Warehouse）和Warehouse中的分析表（fact_sales_by_category_time、fact_top_rated_products）
+- **V2**: 在Warehouse中增加了统一订单表（unified_orders、unified_order_items），作为订单数据的**中间聚合层**
+- **好处**:
+  - 提供统一的订单视图，无需每次都进行复杂的UNION操作
+  - 支持高效的订单级别查询和分析
+  - 为未来的fact表计算提供清洁、标准化的输入数据
+  - 改善前端用户体验（快速展示订单列表和详情）
