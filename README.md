@@ -18,36 +18,45 @@ docker-compose ps
 
 ## 项目架构
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Vue3 仪表板前端                          │
-│              (http://localhost:5173)                        │
-└────────────────────────┬────────────────────────────────────┘
-                         │ REST API
-┌────────────────────────▼────────────────────────────────────┐
-│           Spring Boot 后端 (ETL & Analytics)                │
-│              (http://localhost:8080)                        │
-└─────────────────┬─────────────────┬─────────────────────────┘
-                  │ Kafka Topic     │
-        ┌─────────▼──────┐  ┌──────▼────────────┐
-        │ order-events   │  │ sync-events      │
-        │ sales-events   │  │ (监控)           │
-        └─────────┬──────┘  └──────┬────────────┘
-                  │                 │
-    ┌─────────────▼─────────────────▼──────────┐
-    │        Apache Kafka 消息总线             │
-    │       (实时事件流处理)                   │
-    └─────────────┬──────────────────────────┘
-                  │
-    ┌─────────────▼────────────────────────────┐
-    │     数据源系统 (并行消费转换)             │
-    ├─────────────┬──────────────────────────┤
-    │ App DB      │  Web DB    │ Warehouse   │
-    │ (MySQL)     │  (MySQL)   │    DB       │
-    │ (3306)      │  (3307)    │ (3308)      │
-    │ INT         │  VARCHAR   │ Aggregated │
-    │ order_id    │  order_no  │ Facts      │
-    └─────────────┴──────────────────────────┘
+```mermaid
+---
+config:
+  layout: dagre
+  theme: base
+---
+flowchart TD
+    FE["🖥️ Vue3 前端仪表板<br/>http://localhost:5173"]
+    
+    BE["⚙️ Spring Boot 后端<br/>ETL & Analytics<br/>http://localhost:8080"]
+    
+    OE["📨 order-events<br/>sales-events"]
+    SE["🔔 sync-events<br/>监控事件"]
+    
+    KAFKA["🚀 Apache Kafka 消息总线<br/>实时事件流处理"]
+    
+    APP["📱 App Source DB<br/>MySQL 3306<br/>order_id INT"]
+    WEB["🌐 Web Source DB<br/>MySQL 3307<br/>order_no VARCHAR"]
+    WH["📊 Warehouse DB<br/>MySQL 3308<br/>Aggregated Facts"]
+    
+    FE -->|REST API| BE
+    BE --> OE
+    BE --> SE
+    OE --> KAFKA
+    SE --> KAFKA
+    KAFKA --> APP
+    KAFKA --> WEB
+    KAFKA --> WH
+    APP -.->|异构数据| KAFKA
+    WEB -.->|异构数据| KAFKA
+    
+    style FE fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
+    style BE fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
+    style KAFKA fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#000
+    style OE fill:#fce4ec,stroke:#c2185b,stroke-width:1px,color:#000
+    style SE fill:#fce4ec,stroke:#c2185b,stroke-width:1px,color:#000
+    style APP fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#000
+    style WEB fill:#e0f2f1,stroke:#00796b,stroke-width:2px,color:#000
+    style WH fill:#fbe9e7,stroke:#d84315,stroke-width:2px,color:#000
 ```
 
 ## 核心特性
