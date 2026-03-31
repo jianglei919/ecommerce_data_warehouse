@@ -1,128 +1,127 @@
-# E-Commerce Data Warehouse - Database Design Document
+# 📊 Database Design - App/Web Data Integration Architecture
 
-## System Architecture Diagram
+## System Architecture Overview
 
 ```mermaid
-flowchart TB
- subgraph source_app["APP Source"]
-        app_users["users"]
-        app_products["products"]
-        app_orders["orders<br>INT"]
-        app_order_items["order_items"]
-        app_reviews["reviews"]
+---
+config:
+  layout: dagre
+---
+flowchart LR
+ subgraph app["APP System"]
+        u1["users"]
+        p1["products"]
+        o1["orders<br>order_id INT"]
+        oi1["order_items"]
+        pr1["reviews"]
   end
- subgraph source_web["WEB Source"]
-        web_users["users"]
-        web_products["products"]
-        web_orders["orders<br>VARCHAR"]
-        web_order_items["order_items"]
-        web_reviews["reviews"]
+ subgraph web["WEB System"]
+        u2["users"]
+        p2["products"]
+        o2["orders<br>order_no VARCHAR"]
+        oi2["order_items"]
+        pr2["reviews"]
   end
- subgraph etl["ETL Layer"]
-        clean["Transform &amp;<br>Unify"]
+ subgraph etl["ETL Transform"]
+        transform["- INT to VARCHAR<br>- Date format<br>- Unify & Aggregate"]
   end
  subgraph warehouse["Warehouse"]
-        fact_sales["fact_sales"]
-        fact_top["fact_products"]
+        uo["unified_orders<br>unified_order_items"]
+        fs["fact_sales"]
+        tr["fact_products"]
   end
-    app_users --> clean
-    app_products --> clean
-    app_orders --> clean
-    app_order_items --> clean
-    app_reviews --> clean
-    web_users --> clean
-    web_products --> clean
-    web_orders --> clean
-    web_order_items --> clean
-    web_reviews --> clean
-    clean --> fact_sales & fact_top
+    app --> etl
+    web --> etl
+    etl --> warehouse
 
-    style clean fill:#FFD600,stroke-width:2px,stroke-dasharray: 2
-    style source_app fill:#e3f2fd,stroke:transparent,stroke-width:2px,color:#FF6D00
-    style source_web fill:#e3f2fd,stroke:transparent,stroke-width:2px,color:#AA00FF
-    style etl fill:#f3e5f5,stroke:transparent,stroke-width:2px,color:#2962FF
-    style warehouse fill:#fff3e0,stroke:transparent,stroke-width:2px,color:transparent
+    style app fill:#e1f5ff,stroke:transparent,stroke-width:2px,color:#000
+    style etl fill:#f3e5f5,stroke:transparent,stroke-width:2px,color:#000
+    style web fill:#e8f5e9,stroke:transparent,stroke-width:2px,color:#000
+    style warehouse fill:#fff3e0,stroke:transparent,stroke-width:2px,color:#000
 ```
-
----
 
 ## Heterogeneous Data Handling Overview
 
-**Challenge:** Two source systems use different data formats and field naming conventions.
+| Characteristic     | ecommerce_source_app | ecommerce_source_web |
+| ------------------ | -------------------- | -------------------- |
+| **Channel**        | Mobile Application   | Web Portal           |
+| **Order ID Field** | order_id             | order_no             |
+| **ID Data Type**   | INT (12345)          | VARCHAR (WEB-001)    |
+| **Date Format**    | yyyy-MM-dd           | MM/dd/yyyy           |
+| **Sample Date**    | 2024-03-15           | 03/15/2024           |
 
-| Data Problem                    | App (source_app)  | Web (source_web)          | Solution                                                |
-| ------------------------------- | ----------------- | ------------------------- | ------------------------------------------------------- |
-| **Order ID Field Name**         | order_id          | order_no                  | Add `order_id` field in unified query; map both sources |
-| **Order ID Data Type Mismatch** | INT (e.g., 12345) | VARCHAR (e.g., "WEB-001") | Convert both to VARCHAR in warehouse                    |
-| **Order Date Format Mismatch**  | yyyy-MM-dd        | MM/dd/yyyy                | Unify to yyyy-MM-dd in warehouse; use STR_TO_DATE()     |
+**ETL Tasks to Handle**:
+
+- ✅ Unify field names: order_id / order_no → unified processing
+- ✅ Type conversion: INT → VARCHAR
+- ✅ Date format conversion: MM/dd/yyyy → yyyy-MM-dd
 
 ---
 
-## Database 1: App Business System (ecommerce_source_app)
+## Database 1: App Source System (ecommerce_source_app)
 
-### Schema Overview
+### Database Purpose
 
-```sql
-CREATE DATABASE IF NOT EXISTS ecommerce_source_app;
-USE ecommerce_source_app;
-```
+- Stores all business data from mobile application channel
+- Contains 5 business tables
+- Order ID uses integer type: `order_id INT`
+- Date format: `yyyy-MM-dd`
 
-### Table: users
+### Table Structures
+
+#### 1. Users Table (users)
 
 ```sql
 CREATE TABLE users (
     user_id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
-    email VARCHAR(100) NOT NULL UNIQUE,
+    email VARCHAR(100) UNIQUE,
+    phone VARCHAR(20),
     city VARCHAR(50),
-    register_date DATE NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Sample data:
--- | user_id | name | email | city | register_date |
--- | 1 | Alice | alice@example.com | New York | 2024-01-15 |
--- | 2 | Bob | bob@example.com | Los Angeles | 2024-02-20 |
+    register_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### Table: products
+#### 2. Products Table (products)
 
 ```sql
 CREATE TABLE products (
     product_id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(200) NOT NULL,
+    description TEXT,
     category VARCHAR(50) NOT NULL,
     price DECIMAL(10,2) NOT NULL,
-    brand VARCHAR(100)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Sample data:
--- | product_id | name | category | price | brand |
--- | 1 | iPhone 14 | Electronics | 999.99 | Apple |
--- | 2 | Samsung Galaxy | Electronics | 799.99 | Samsung |
--- | 3 | T-Shirt | Clothing | 29.99 | Nike |
+    cost DECIMAL(10,2),
+    brand VARCHAR(50),
+    stock_qty INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_category (category),
+    INDEX idx_brand (brand)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### Table: orders
+#### 3. Orders Table (orders)
 
 ```sql
 CREATE TABLE orders (
-    order_id INT PRIMARY KEY AUTO_INCREMENT COMMENT 'Numeric order ID',
+    order_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT NOT NULL,
-    order_date DATE NOT NULL COMMENT 'Format: yyyy-MM-dd',
-    total_amount DECIMAL(10,2) NOT NULL,
-    status VARCHAR(50) DEFAULT 'pending',
+    order_date DATE NOT NULL,
+    total_amount DECIMAL(12,2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'completed',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id),
-    KEY idx_user_id (user_id),
-    KEY idx_order_date (order_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Sample data:
--- | order_id | user_id | order_date | total_amount | status |
--- | 1 | 1 | 2024-03-01 | 999.99 | completed |
--- | 2 | 2 | 2024-03-02 | 829.98 | completed |
+    INDEX idx_user_id (user_id),
+    INDEX idx_order_date (order_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### Table: order_items
+#### 4. Order Items Table (order_items)
 
 ```sql
 CREATE TABLE order_items (
@@ -131,102 +130,64 @@ CREATE TABLE order_items (
     product_id INT NOT NULL,
     quantity INT NOT NULL,
     unit_price DECIMAL(10,2) NOT NULL,
-    FOREIGN KEY (order_id) REFERENCES orders(order_id),
+    line_total DECIMAL(12,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(product_id),
-    KEY idx_order_id (order_id),
-    KEY idx_product_id (product_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Sample data:
--- | item_id | order_id | product_id | quantity | unit_price |
--- | 1 | 1 | 1 | 1 | 999.99 |
--- | 2 | 2 | 2 | 1 | 799.99 |
+    INDEX idx_order_id (order_id),
+    INDEX idx_product_id (product_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### Table: product_reviews
+#### 5. Product Reviews Table (product_reviews)
 
 ```sql
 CREATE TABLE product_reviews (
     review_id INT PRIMARY KEY AUTO_INCREMENT,
     product_id INT NOT NULL,
-    user_id INT NOT NULL,
-    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
-    review_date DATE NOT NULL,
+    user_id INT,
+    rating INT CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    review_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (product_id) REFERENCES products(product_id),
     FOREIGN KEY (user_id) REFERENCES users(user_id),
-    KEY idx_product_id (product_id),
-    KEY idx_rating (rating)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Sample data:
--- | review_id | product_id | user_id | rating | review_date |
--- | 1 | 1 | 1 | 5 | 2024-03-05 |
--- | 2 | 1 | 2 | 4 | 2024-03-06 |
+    INDEX idx_product_id (product_id),
+    INDEX idx_rating (rating)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ---
 
-## Database 2: Web Business System (ecommerce_source_web)
+## Database 2: Web Source System (ecommerce_source_web)
 
-### Schema Overview
+### Database Purpose
 
-```sql
-CREATE DATABASE IF NOT EXISTS ecommerce_source_web;
-USE ecommerce_source_web;
-```
+- Stores all business data from web channel (website, mobile web, etc.)
+- Contains 5 business tables (same structure as source_app, main difference in orders table)
+- Order ID uses string type: `order_no VARCHAR`
+- Date format requires special handling: `MM/dd/yyyy` (convert to yyyy-MM-dd during ETL)
 
-### Table: users
+### Key Table Differences
 
-```sql
-CREATE TABLE users (
-    user_id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(100) NOT NULL UNIQUE,
-    city VARCHAR(50),
-    register_date DATE NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-```
-
-### Table: products
-
-```sql
-CREATE TABLE products (
-    product_id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(200) NOT NULL,
-    category VARCHAR(50) NOT NULL,
-    price DECIMAL(10,2) NOT NULL,
-    brand VARCHAR(100)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-```
-
-### Table: orders - ⚠️ **Key Difference from App Source**
+#### 3. Orders Table (orders) - Web Channel Specific
 
 ```sql
 CREATE TABLE orders (
-    order_no VARCHAR(50) PRIMARY KEY COMMENT 'Alphanumeric order ID (e.g., WEB-001)',
+    order_no VARCHAR(50) PRIMARY KEY,
     user_id INT NOT NULL,
-    order_date VARCHAR(10) NOT NULL COMMENT 'Format: MM/dd/yyyy ← Different from App!',
-    total_amount DECIMAL(10,2) NOT NULL,
-    status VARCHAR(50) DEFAULT 'pending',
+    order_date DATE NOT NULL,
+    total_amount DECIMAL(12,2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'completed',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id),
-    KEY idx_user_id (user_id),
-    KEY idx_order_date (order_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Sample data:
--- | order_no | user_id | order_date | total_amount | status |
--- | WEB-001 | 3 | 03/01/2024 | 999.99 | completed |
--- | WEB-002 | 4 | 03/02/2024 | 829.98 | completed |
+    INDEX idx_user_id (user_id),
+    INDEX idx_order_date (order_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-**Key Difference - Field Name & Format:**
-
-- App source: `order_id` (INT type, e.g., 12345)
-- Web source: `order_no` (VARCHAR type, e.g., "WEB-001")
-- App date format: `yyyy-MM-dd`
-- Web date format: `MM/dd/yyyy`
-
-### Table: order_items - Web Source
+#### 4. Order Items Table (order_items) - Web Channel
 
 ```sql
 CREATE TABLE order_items (
@@ -235,325 +196,243 @@ CREATE TABLE order_items (
     product_id INT NOT NULL,
     quantity INT NOT NULL,
     unit_price DECIMAL(10,2) NOT NULL,
-    FOREIGN KEY (order_no) REFERENCES orders(order_no),
+    line_total DECIMAL(12,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_no) REFERENCES orders(order_no) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(product_id),
-    KEY idx_order_no (order_no),
-    KEY idx_product_id (product_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    INDEX idx_order_no (order_no),
+    INDEX idx_product_id (product_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### Table: product_reviews
+#### 5. Product Reviews Table (product_reviews) - Web Channel
 
 ```sql
 CREATE TABLE product_reviews (
     review_id INT PRIMARY KEY AUTO_INCREMENT,
     product_id INT NOT NULL,
-    user_id INT NOT NULL,
-    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
-    review_date DATE NOT NULL,
+    user_id INT,
+    rating INT CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    review_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (product_id) REFERENCES products(product_id),
     FOREIGN KEY (user_id) REFERENCES users(user_id),
-    KEY idx_product_id (product_id),
-    KEY idx_rating (rating)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    INDEX idx_product_id (product_id),
+    INDEX idx_rating (rating)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ---
 
-## Database 3: Data Warehouse (ecommerce_warehouse)
+## Database 3: Analytics Data Warehouse (ecommerce_warehouse)
 
-### Schema Overview
+### Database Purpose
+
+- Stores ETL-processed, unified, and analysis-ready data
+- Contains 4 tables: 2 unified order tables (intermediate aggregation) + 2 analysis fact tables
+- Integrates data from both App and Web channels, handling heterogeneous data differences
+- Unified order tables provide clean, standardized input for subsequent analysis tables
+
+### Table Structures
+
+#### 1. Unified Orders Table (unified_orders)
+
+Consolidates orders from both App and Web channels in a single table, using `source` field to distinguish channels. This table serves as an intermediate aggregation layer, eliminating complex UNION operations.
 
 ```sql
-CREATE DATABASE IF NOT EXISTS ecommerce_warehouse;
-USE ecommerce_warehouse;
+CREATE TABLE unified_orders (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT 'Unified order primary key',
+    source ENUM('APP', 'WEB') NOT NULL COMMENT 'Order source',
+    app_order_id INT COMMENT 'App channel order ID',
+    web_order_no VARCHAR(50) COMMENT 'Web channel order number',
+    user_id INT NOT NULL COMMENT 'User ID',
+    user_name VARCHAR(100) COMMENT 'User name',
+    user_email VARCHAR(100) COMMENT 'User email',
+    user_phone VARCHAR(20) COMMENT 'User phone',
+    user_city VARCHAR(50) COMMENT 'User city',
+    order_date DATE NOT NULL COMMENT 'Order date (yyyy-MM-dd)',
+    total_amount DECIMAL(12,2) NOT NULL COMMENT 'Order total', status VARCHAR(20) DEFAULT 'completed' COMMENT 'Order status',
+    item_count INT DEFAULT 0 COMMENT 'Number of items',
+    total_quantity INT DEFAULT 0 COMMENT 'Total quantity',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_order_source (source, app_order_id, web_order_no),
+    INDEX idx_source (source),
+    INDEX idx_order_date (order_date),
+    INDEX idx_user_id (user_id),
+    INDEX idx_source_date (source, order_date),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-**Purpose:** Store cleaned, transformed, and unified data optimized for analytics queries.
+#### 2. Unified Order Items Table (unified_order_items)
 
-### Table: fact_sales_by_category_time
+```sql
+CREATE TABLE unified_order_items (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    unified_order_id INT NOT NULL,
+    source ENUM('APP', 'WEB') NOT NULL,
+    app_item_id INT,
+    web_item_id INT,
+    product_id INT NOT NULL,
+    product_name VARCHAR(200),
+    category VARCHAR(50),
+    brand VARCHAR(50),
+    quantity INT NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL,
+    line_total DECIMAL(12,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (unified_order_id) REFERENCES unified_orders(id) ON DELETE CASCADE,
+    INDEX idx_unified_order_id (unified_order_id),
+    INDEX idx_source (source),
+    INDEX idx_product_id (product_id),
+    INDEX idx_category (category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
 
-**Purpose:** Sales quantity statistics by product category and time dimensions.
+#### 3. Sales by Category and Time Fact Table (fact_sales_by_category_time)
 
 ```sql
 CREATE TABLE fact_sales_by_category_time (
-    sale_id INT PRIMARY KEY AUTO_INCREMENT,
+    id INT PRIMARY KEY AUTO_INCREMENT,
     category VARCHAR(50) NOT NULL,
     year INT NOT NULL,
     month INT NOT NULL,
-    day INT NOT NULL,
-    total_quantity INT NOT NULL DEFAULT 0,
-    total_sales_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_category_time (category, year, month, day),
-    KEY idx_category (category),
-    KEY idx_year_month (year, month)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Sample data:
--- | category | year | month | day | total_quantity | total_sales_amount |
--- | Electronics | 2024 | 3 | 1 | 250 | 125000.00 |
--- | Clothing | 2024 | 3 | 1 | 450 | 22500.00 |
--- | Books | 2024 | 3 | 1 | 120 | 4800.00 |
+    day INT,
+    total_quantity INT DEFAULT 0,
+    total_sales_amount DECIMAL(15,2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_category_time (category, year, month, day),
+    INDEX idx_category (category),
+    INDEX idx_time (year, month, day)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### Table: fact_top_rated_products
-
-**Purpose:** Top-rated products with average ratings and review counts by time period.
+#### 4. Top Rated Products Fact Table (fact_top_rated_products)
 
 ```sql
 CREATE TABLE fact_top_rated_products (
-    rank_id INT PRIMARY KEY AUTO_INCREMENT,
+    id INT PRIMARY KEY AUTO_INCREMENT,
     product_id INT NOT NULL,
     product_name VARCHAR(200) NOT NULL,
-    category VARCHAR(50) NOT NULL,
-    year INT NOT NULL,
-    month INT NOT NULL,
-    day INT NOT NULL,
-    avg_rating DECIMAL(3,2) NOT NULL,
-    review_count INT NOT NULL DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_product_time (product_id, year, month, day),
-    KEY idx_category (category),
-    KEY idx_avg_rating (avg_rating),
-    KEY idx_year_month (year, month)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Sample data:
--- | product_id | product_name | category | year | month | day | avg_rating | review_count |
--- | 1 | iPhone 14 | Electronics | 2024 | 3 | 15 | 4.80 | 250 |
--- | 2 | Samsung Galaxy | Electronics | 2024 | 3 | 15 | 4.70 | 200 |
+    category VARCHAR(50),
+    avg_rating DECIMAL(3,2),
+    review_count INT DEFAULT 0,
+    year INT,
+    month INT,
+    day INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_product_id (product_id),
+    INDEX idx_avg_rating (avg_rating DESC),
+    INDEX idx_category (category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ---
 
-## ETL Data Transformation Strategy
+## ETL Data Transformation
 
-### 1. ETL Data Extraction
+### ETL Query Examples
 
-**Query from App Source System:**
+**Extract from App Source**:
 
 ```sql
--- Extract from: ecommerce_source_app
-SELECT
-    CAST(a.order_id AS CHAR) AS order_id,  -- Normalize to VARCHAR
-    a.user_id,
-    a.order_date,  -- Already in yyyy-MM-dd format
-    p.category,
-    oi.quantity,
-    oi.unit_price,
-    (oi.quantity * oi.unit_price) AS line_amount,
-    r.rating,
-    'APP' AS source_channel
-FROM ecommerce_source_app.orders a
-INNER JOIN ecommerce_source_app.order_items oi ON a.order_id = oi.order_id
-INNER JOIN ecommerce_source_app.products p ON oi.product_id = p.product_id
-LEFT JOIN ecommerce_source_app.product_reviews r ON p.product_id = r.product_id
-    AND a.user_id = r.user_id
-WHERE a.status = 'completed'
-    AND a.order_date >= '2024-01-01';
+SELECT CAST(o.order_id AS CHAR) as order_id_unified, o.order_date, oi.quantity, p.category
+FROM ecommerce_source_app.orders o
+JOIN ecommerce_source_app.order_items oi ON o.order_id = oi.order_id
+JOIN ecommerce_source_app.products p ON oi.product_id = p.product_id;
 ```
 
-**Query from Web Source System:**
+**Extract from Web Source**:
 
 ```sql
--- Extract from: ecommerce_source_web
-SELECT
-    w.order_no AS order_id,  -- Already VARCHAR
-    w.user_id,
-    STR_TO_DATE(w.order_date, '%m/%d/%Y') AS order_date,  -- Convert MM/dd/yyyy → yyyy-MM-dd
-    p.category,
-    oi.quantity,
-    oi.unit_price,
-    (oi.quantity * oi.unit_price) AS line_amount,
-    r.rating,
-    'WEB' AS source_channel
-FROM ecommerce_source_web.orders w
-INNER JOIN ecommerce_source_web.order_items oi ON w.order_no = oi.order_no
-INNER JOIN ecommerce_source_web.products p ON oi.product_id = p.product_id
-LEFT JOIN ecommerce_source_web.product_reviews r ON p.product_id = r.product_id
-    AND w.user_id = r.user_id
-WHERE w.status = 'completed'
-    AND STR_TO_DATE(w.order_date, '%m/%d/%Y') >= '2024-01-01';
-```
-
-### 2. ETL Data Unification
-
-**Combined Data Transformation Query (UNION ALL):**
-
-```sql
--- Unified data extraction from both sources
-SELECT
-    order_id,
-    user_id,
-    order_date,
-    category,
-    quantity,
-    unit_price,
-    line_amount,
-    rating,
-    source_channel
-FROM (
-    -- App source
-    SELECT
-        CAST(a.order_id AS CHAR) AS order_id,
-        a.user_id,
-        a.order_date,
-        p.category,
-        oi.quantity,
-        oi.unit_price,
-        (oi.quantity * oi.unit_price) AS line_amount,
-        r.rating,
-        'APP' AS source_channel
-    FROM ecommerce_source_app.orders a
-    INNER JOIN ecommerce_source_app.order_items oi ON a.order_id = oi.order_id
-    INNER JOIN ecommerce_source_app.products p ON oi.product_id = p.product_id
-    LEFT JOIN ecommerce_source_app.product_reviews r ON p.product_id = r.product_id
-        AND a.user_id = r.user_id
-    WHERE a.status = 'completed'
-
-    UNION ALL
-
-    -- Web source
-    SELECT
-        w.order_no AS order_id,
-        w.user_id,
-        STR_TO_DATE(w.order_date, '%m/%d/%Y') AS order_date,
-        p.category,
-        oi.quantity,
-        oi.unit_price,
-        (oi.quantity * oi.unit_price) AS line_amount,
-        r.rating,
-        'WEB' AS source_channel
-    FROM ecommerce_source_web.orders w
-    INNER JOIN ecommerce_source_web.order_items oi ON w.order_no = oi.order_no
-    INNER JOIN ecommerce_source_web.products p ON oi.product_id = p.product_id
-    LEFT JOIN ecommerce_source_web.product_reviews r ON p.product_id = r.product_id
-        AND w.user_id = r.user_id
-    WHERE w.status = 'completed'
-) unified_data
-ORDER BY order_date, source_channel;
-```
-
-### 3. ETL Data Load into Warehouse
-
-**Populate fact_sales_by_category_time:**
-
-```sql
-INSERT INTO ecommerce_warehouse.fact_sales_by_category_time
-(category, year, month, day, total_quantity, total_sales_amount)
-SELECT
-    category,
-    YEAR(order_date) AS year,
-    MONTH(order_date) AS month,
-    DAY(order_date) AS day,
-    SUM(quantity) AS total_quantity,
-    SUM(line_amount) AS total_sales_amount
-FROM (
-    -- Insert unified extraction query here
-) unified_data
-GROUP BY category, YEAR(order_date), MONTH(order_date), DAY(order_date)
-ON DUPLICATE KEY UPDATE
-    total_quantity = VALUES(total_quantity),
-    total_sales_amount = VALUES(total_sales_amount);
-```
-
-**Populate fact_top_rated_products:**
-
-```sql
-INSERT INTO ecommerce_warehouse.fact_top_rated_products
-(product_id, product_name, category, year, month, day, avg_rating, review_count)
-SELECT
-    p.product_id,
-    p.name AS product_name,
-    p.category,
-    YEAR(r.review_date) AS year,
-    MONTH(r.review_date) AS month,
-    DAY(r.review_date) AS day,
-    AVG(r.rating) AS avg_rating,
-    COUNT(r.review_id) AS review_count
-FROM (
-    SELECT product_id, name, category FROM ecommerce_source_app.products
-    UNION ALL
-    SELECT product_id, name, category FROM ecommerce_source_web.products
-) p
-LEFT JOIN (
-    SELECT product_id, rating, review_date FROM ecommerce_source_app.product_reviews
-    UNION ALL
-    SELECT product_id, rating, review_date FROM ecommerce_source_web.product_reviews
-) r ON p.product_id = r.product_id
-WHERE r.rating IS NOT NULL
-GROUP BY p.product_id, p.name, p.category, YEAR(r.review_date), MONTH(r.review_date), DAY(r.review_date)
-ON DUPLICATE KEY UPDATE
-    avg_rating = VALUES(avg_rating),
-    review_count = VALUES(review_count);
+SELECT o.order_no as order_id_unified, STR_TO_DATE(o.order_date, '%m/%d/%Y') as order_date, oi.quantity, p.category
+FROM ecommerce_source_web.orders o
+JOIN ecommerce_source_web.order_items oi ON o.order_no = oi.order_no
+JOIN ecommerce_source_web.products p ON oi.product_id = p.product_id;
 ```
 
 ---
 
 ## Indexing Strategy
 
-### ecommerce_source_app - Indexes
+### Warehouse (ecommerce_warehouse)
+
+**Unified Orders Table**:
+
+- `idx_source` - Filter by channel
+- `idx_order_date` - Sort and range queries
+- `idx_user_id` - User order lookup
+- `idx_source_date` - Combined filtering
+- `idx_status` - Status-based filtering
+
+**Analysis Tables**:
+
+- `fact_sales_by_category_time` - Multi-dimensional aggregation
+- `fact_top_rated_products` - Ranking queries
+
+---
+
+## Common Query Patterns
+
+### Unified Orders
+
+**Get all unified orders**:
 
 ```sql
--- Already defined in FOREIGN KEY constraints and table definitions
--- Key indexes for common queries:
-ALTER TABLE ecommerce_source_app.orders
-ADD KEY idx_user_order_date (user_id, order_date);
-
-ALTER TABLE ecommerce_source_app.products
-ADD KEY idx_category (category);
-
-ALTER TABLE ecommerce_source_app.product_reviews
-ADD KEY idx_product_user (product_id, user_id);
+SELECT id, source, user_name, order_date, total_amount
+FROM unified_orders WHERE status = 'completed'
+ORDER BY order_date DESC LIMIT 20 OFFSET 0;
 ```
 
-### ecommerce_source_web - Indexes
+**App vs Web statistics**:
 
 ```sql
-ALTER TABLE ecommerce_source_web.orders
-ADD KEY idx_user_order_date (user_id, order_date);
-
-ALTER TABLE ecommerce_source_web.products
-ADD KEY idx_category (category);
-
-ALTER TABLE ecommerce_source_web.product_reviews
-ADD KEY idx_product_user (product_id, user_id);
+SELECT source, COUNT(*) as count, SUM(total_amount) as sales
+FROM unified_orders WHERE status = 'completed' GROUP BY source;
 ```
 
-### ecommerce_warehouse - Indexes
+**By category**:
 
 ```sql
--- Fact table indexes for fast aggregation queries
-ALTER TABLE ecommerce_warehouse.fact_sales_by_category_time
-ADD KEY idx_category_year_month (category, year, month, day);
+SELECT i.category, o.source, COUNT(DISTINCT o.id) as orders, SUM(i.quantity) as qty
+FROM unified_orders o JOIN unified_order_items i ON o.id = i.unified_order_id
+WHERE o.status = 'completed' GROUP BY i.category, o.source
+ORDER BY total_sales DESC;
+```
 
-ALTER TABLE ecommerce_warehouse.fact_top_rated_products
-ADD KEY idx_rating_review_count (avg_rating DESC, review_count DESC);
+### Analysis
 
-ALTER TABLE ecommerce_warehouse.fact_top_rated_products
-ADD KEY idx_category_year_month (category, year, month, day);
+**Category trends**:
+
+```sql
+SELECT category, year, month, total_quantity, total_sales_amount
+FROM fact_sales_by_category_time ORDER BY year DESC, month DESC;
+```
+
+**Top products**:
+
+```sql
+SELECT product_name, category, avg_rating, review_count
+FROM fact_top_rated_products ORDER BY avg_rating DESC LIMIT 10;
 ```
 
 ---
 
-## Summary
+## Three-Layer Warehouse Architecture
 
-**Three-Database Architecture:**
+| Layer           | Database                                             | Purpose              |
+| --------------- | ---------------------------------------------------- | -------------------- |
+| **Source**      | ecommerce_source_app, ecommerce_source_web           | Raw transaction data |
+| **Aggregation** | unified_orders, unified_order_items                  | Unified order data   |
+| **Analysis**    | fact_sales_by_category_time, fact_top_rated_products | BI and reporting     |
 
-1. **ecommerce_source_app**: Mobile app channel with 5 tables (order_id: INT, date: yyyy-MM-dd)
-2. **ecommerce_source_web**: Web portal channel with 5 tables (order_no: VARCHAR, date: MM/dd/yyyy)
-3. **ecommerce_warehouse**: Analytics warehouse with 2 fact tables (unified data format)
+**Value of Unified Orders**:
 
-**ETL Workflow:**
-
-1. Extract from both App and Web sources
-2. Transform: Unify field names, convert data types, format dates
-3. Clean: Validate data integrity, handle nulls, deduplication
-4. Load: Populate warehouse fact tables for analytics
-
-**Query Principle:**
-
-✅ **All analytics queries MUST use warehouse tables** (fact_sales_by_category_time, fact_top_rated_products)
-
-❌ **Never query source systems directly** for analytics
+- Eliminate heterogeneous data differences
+- High-performance order queries
+- Quick unified view on application tier
+- Clean data source for analysis tables
