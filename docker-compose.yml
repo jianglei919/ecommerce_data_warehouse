@@ -1,0 +1,279 @@
+version: "3.8"
+
+services:
+  # Zookeeper
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: warehouse-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_INIT_LIMIT: 5
+    ports:
+      - "2181:2181"
+    networks:
+      - warehouse-network
+    healthcheck:
+      test: ["CMD", "echo", "stat", "|", "nc", "-w", "2", "127.0.0.1", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Kafka
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: warehouse-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
+    networks:
+      - warehouse-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "kafka-broker-api-versions",
+          "--bootstrap-server",
+          "kafka:29092",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MySQL - App Database
+  app-db:
+    image: mysql:8.0
+    container_name: warehouse-app-db
+    environment:
+      MYSQL_DATABASE: ecommerce_source_app
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_HOST: "%"
+    ports:
+      - "3306:3306"
+    volumes:
+      - app-db-data:/var/lib/mysql
+      - ./sql/01-app-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    networks:
+      - warehouse-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+
+  # MySQL - Web Database
+  web-db:
+    image: mysql:8.0
+    container_name: warehouse-web-db
+    environment:
+      MYSQL_DATABASE: ecommerce_source_web
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_HOST: "%"
+    ports:
+      - "3307:3306"
+    volumes:
+      - web-db-data:/var/lib/mysql
+      - ./sql/02-web-schema.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
+    networks:
+      - warehouse-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+
+  # MySQL - Warehouse Database
+  warehouse-db:
+    image: mysql:8.0
+    container_name: warehouse-db
+    environment:
+      MYSQL_DATABASE: ecommerce_warehouse
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_HOST: "%"
+    ports:
+      - "3308:3306"
+    volumes:
+      - warehouse-db-data:/var/lib/mysql
+      - ./sql/03-warehouse-schema.sql:/docker-entrypoint-initdb.d/03-schema.sql:ro
+    networks:
+      - warehouse-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+
+  # Redis (可选，用于热数据缓存)
+  redis:
+    image: redis:7-alpine
+    container_name: warehouse-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - warehouse-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  # Nginx 反向代理 (可选)
+  nginx:
+    image: nginx:alpine
+    container_name: warehouse-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - warehouse-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Spring Boot 后端应用 (待实现)
+  backend:
+    image: warehouse-backend:latest
+    container_name: warehouse-backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      app-db:
+        condition: service_healthy
+      web-db:
+        condition: service_healthy
+      warehouse-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      JAVA_OPTS: "-Xmx512m -Xms256m"
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: 20
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: 5
+      # App 数据源
+      APP_DATASOURCE_URL: jdbc:mysql://app-db:3306/ecommerce_source_app?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      APP_DATASOURCE_USERNAME: root
+      APP_DATASOURCE_PASSWORD: root
+      # Web 数据源
+      WEB_DATASOURCE_URL: jdbc:mysql://web-db:3306/ecommerce_source_web?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      WEB_DATASOURCE_USERNAME: root
+      WEB_DATASOURCE_PASSWORD: root
+      # 仓库数据源
+      WAREHOUSE_DATASOURCE_URL: jdbc:mysql://warehouse-db:3306/ecommerce_warehouse?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      WAREHOUSE_DATASOURCE_USERNAME: root
+      WAREHOUSE_DATASOURCE_PASSWORD: root
+      # Redis
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ""
+      # 应用配置
+      APP_NAME: warehouse-backend
+      APP_VERSION: 1.0.0
+    networks:
+      - warehouse-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: on-failure:3
+
+  # Vue3 前端应用 (待实现)
+  frontend:
+    image: warehouse-frontend:latest
+    container_name: warehouse-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: production
+        VITE_API_URL: http://backend:8080
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      VITE_API_URL: http://backend:8080
+    networks:
+      - warehouse-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:5173",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: on-failure:3
+
+volumes:
+  app-db-data:
+    driver: local
+  web-db-data:
+    driver: local
+  warehouse-db-data:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  warehouse-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16

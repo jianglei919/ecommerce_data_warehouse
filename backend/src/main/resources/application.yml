@@ -1,0 +1,133 @@
+spring:
+  application:
+    name: warehouse-backend
+
+  # 数据源配置
+  datasource:
+    app:
+      jdbc-url: ${APP_DATASOURCE_URL:jdbc:mysql://app-db:3306/ecommerce_source_app?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+      username: ${APP_DATASOURCE_USERNAME:root}
+      password: ${APP_DATASOURCE_PASSWORD:root}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+    web:
+      jdbc-url: ${WEB_DATASOURCE_URL:jdbc:mysql://web-db:3306/ecommerce_source_web?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+      username: ${WEB_DATASOURCE_USERNAME:root}
+      password: ${WEB_DATASOURCE_PASSWORD:root}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+    warehouse:
+      jdbc-url: ${WAREHOUSE_DATASOURCE_URL:jdbc:mysql://warehouse-db:3306/ecommerce_warehouse?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+      username: ${WAREHOUSE_DATASOURCE_USERNAME:root}
+      password: ${WAREHOUSE_DATASOURCE_PASSWORD:root}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # Kafka 配置
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      batch-size: 16384
+      linger-ms: 10
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      group-id: warehouse-etl-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      max-poll-records: 500
+      session-timeout-ms: 30000
+      properties:
+        spring.json.trusted.packages: "*"
+    listener:
+      type: batch
+      poll-timeout: 3000
+      ack-mode: MANUAL
+
+  # Redis 配置
+  redis:
+    host: ${SPRING_REDIS_HOST:warehouse-redis}
+    port: ${SPRING_REDIS_PORT:6379}
+    password: ${SPRING_REDIS_PASSWORD:}
+    timeout: 2000ms
+    jedis:
+      pool:
+        max-active: 20
+        max-idle: 10
+        min-idle: 5
+        max-wait: -1ms
+    database: 0
+
+  # JPA 配置
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+
+  # Jackson 配置
+  jackson:
+    default-property-inclusion: non_null
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: UTC
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.uwindsor.warehouse.domain
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: true
+    use-generated-keys: true
+    default-statement-timeout: 30
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.uwindsor: DEBUG
+    org.springframework.kafka: INFO
+    org.apache.kafka: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# 应用配置
+app:
+  name: warehouse-backend
+  version: 1.0.0
+  kafka:
+    topics:
+      order-events: order-events
+      sales-events: sales-events
+      sync-events: sync-events
+  etl:
+    batch-size: 100
+    batch-timeout-ms: 5000
+    retry-count: 3
+    retry-delay-ms: 1000
+
+# Actuator 配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    enable:
+      jvm: true
+      process: true
+      system: true

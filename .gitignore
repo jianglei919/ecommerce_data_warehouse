@@ -1,0 +1,80 @@
+# 操作系统
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.iml
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Build
+dist/
+build/
+*.egg-info/
+.Python
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv
+venv/
+env/
+
+# Maven
+target/
+.classpath
+.project
+.settings/
+*.log
+
+# Docker
+.dockerignore
+
+# Docker Compose volumes
+app-db-data/
+web-db-data/
+warehouse-db-data/
+redis-data/
+
+# Generated files
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+
+# IDE temporary files
+.idea/workspace.xml
+.idea/tasks.xml
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS
+.DS_Store
+desktop.ini
+
+# Backup
+*.bak
+*.backup
