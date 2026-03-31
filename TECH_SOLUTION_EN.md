@@ -39,17 +39,40 @@ Build a real-time data warehouse system that **synchronizes data in real-time** 
 
 ## Business Architecture
 
-```
-Data Source Layer      Event Layer        Processing Layer      Warehouse Layer    Display Layer
-┌──────────┐          ┌──────┐         ┌────────┐            ┌────────┐         ┌──────┐
-│ App DB   │──DML──→  │      │         │        │            │        │         │      │
-│ (MySQL)  │          │ Event│        │ ETL    │           │ Data   │         │Vue3  │
-│          │          │ Bus  │───────→│Process │───────────│Warehouse│────────│      │
-│ Web DB   │──DML──→  │      │        │        │          │(MySQL)  │         │Charts│
-│ (MySQL)  │          │      │        │        │          │         │         │      │
-└──────────┘          │(Kafka│        └────────┘         └─────────┘        └──────┘
-                      └──────┘
-                      ~1s latency         ~2s processing            Real-time display
+```mermaid
+graph LR
+    subgraph source["Data Source Layer"]
+        appdb["App DB<br/>(MySQL)"]
+        webdb["Web DB<br/>(MySQL)"]
+    end
+
+    subgraph event["Event Layer"]
+        kafka["Event Bus<br/>(Kafka)"]
+    end
+
+    subgraph process["Processing Layer"]
+        etl["ETL Process"]
+    end
+
+    subgraph warehouse["Warehouse Layer"]
+        whdb["Data Warehouse<br/>(MySQL)"]
+    end
+
+    subgraph display["Display Layer"]
+        vue["Vue3<br/>Charts"]
+    end
+
+    appdb -->|DML| kafka
+    webdb -->|DML| kafka
+    kafka -->|~1s latency| etl
+    etl -->|~2s processing| whdb
+    whdb -->|Real-time display| vue
+
+    style source fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    style event fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style process fill:#ffe0b2,stroke:#f57c00,stroke-width:2px
+    style warehouse fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style display fill:#fce4ec,stroke:#c2185b,stroke-width:2px
 ```
 
 ---
