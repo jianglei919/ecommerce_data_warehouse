@@ -125,14 +125,43 @@ public class UnifiedOrdersController {
     public ResponseEntity<?> getOrderDetail(@PathVariable Integer unifiedOrderId) {
 
         try {
-            UnifiedOrder order = unifiedOrderMapper.selectById(unifiedOrderId);
-            if (order == null) {
+            // 查询订单主表
+            String orderSql = "SELECT * FROM unified_orders WHERE unified_order_id = ?";
+            List<UnifiedOrder> orders = jdbcTemplate.query(orderSql, UNIFIED_ORDER_ROW_MAPPER, unifiedOrderId);
+
+            if (orders.isEmpty()) {
                 return ResponseEntity.status(404).body(Map.of(
                         "status", "error",
                         "message", "Order not found"));
             }
 
-            List<UnifiedOrderItem> items = unifiedOrderItemMapper.selectByOrderId(unifiedOrderId);
+            UnifiedOrder order = orders.get(0);
+
+            // 查询订单项
+            String itemsSql = """
+                    SELECT
+                        unified_item_id, unified_order_id, product_id,
+                        product_name, category, quantity, unit_price, subtotal
+                    FROM unified_order_items
+                    WHERE unified_order_id = ?
+                    """;
+
+            List<Map<String, Object>> itemMaps = jdbcTemplate.queryForList(itemsSql, unifiedOrderId);
+            List<UnifiedOrderItem> items = itemMaps.stream().map(map -> {
+                UnifiedOrderItem item = new UnifiedOrderItem();
+                item.setUnifiedItemId(((Number) map.get("unified_item_id")).intValue());
+                item.setUnifiedOrderId(((Number) map.get("unified_order_id")).intValue());
+                item.setProductId(((Number) map.get("product_id")).intValue());
+                item.setProductName((String) map.get("product_name"));
+                item.setCategory((String) map.get("category"));
+                item.setQuantity(((Number) map.get("quantity")).intValue());
+                item.setUnitPrice(
+                        map.get("unit_price") != null ? new java.math.BigDecimal(map.get("unit_price").toString())
+                                : null);
+                item.setSubtotal(
+                        map.get("subtotal") != null ? new java.math.BigDecimal(map.get("subtotal").toString()) : null);
+                return item;
+            }).toList();
 
             Map<String, Object> result = new HashMap<>();
             result.put("status", "success");
@@ -141,6 +170,7 @@ public class UnifiedOrdersController {
             result.put("itemCount", items.size());
             result.put("timestamp", LocalDateTime.now());
 
+            log.info("Fetched order detail: {}", unifiedOrderId);
             return ResponseEntity.ok(result);
 
         } catch (Exception e) {

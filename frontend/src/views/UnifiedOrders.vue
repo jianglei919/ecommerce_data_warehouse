@@ -60,7 +60,10 @@
         size="small"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'source'">
+          <template v-if="column.key === 'orderNo'">
+            {{ record.appOrderId || record.webOrderNo }}
+          </template>
+          <template v-else-if="column.key === 'source'">
             <a-tag :color="record.source === 'APP' ? 'blue' : 'green'">
               {{ record.source }}
             </a-tag>
@@ -74,7 +77,7 @@
             ¥{{ record.totalAmount.toFixed(2) }}
           </template>
           <template v-else-if="column.key === 'action'">
-            <a-button type="link" @click="showDetail(record)">查看详情</a-button>
+            <a-button type="link" size="small" @click="showDetail(record)">查看详情</a-button>
           </template>
         </template>
       </a-table>
@@ -214,10 +217,8 @@ const columns = [
   },
   {
     title: '订单号',
-    dataIndex: ['appOrderId', 'webOrderNo'],
     key: 'orderNo',
-    width: 150,
-    render: (text: any, record: UnifiedOrder) => record.appOrderId || record.webOrderNo
+    width: 150
   },
   {
     title: '订单日期',
@@ -337,12 +338,22 @@ const handleTableChange = (pag: any) => {
 
 const showDetail = async (order: UnifiedOrder) => {
   try {
+    console.log('Loading order detail:', order.unifiedOrderId)
     const response = await axios.get(`${API_BASE}/unified-orders/${order.unifiedOrderId}`)
-    detailModal.value.order = response.data.order
-    detailModal.value.items = response.data.items
-    detailModal.value.visible = true
-  } catch (error) {
-    console.error('Failed to load order detail:', error)
+    console.log('Order detail response:', response.data)
+    
+    if (response.data && response.data.order) {
+      detailModal.value.order = response.data.order
+      detailModal.value.items = response.data.items || []
+      detailModal.value.visible = true
+    } else {
+      console.error('Invalid response structure:', response.data)
+    }
+  } catch (error: any) {
+    console.error('Failed to load order detail:', error.message)
+    if (error.response) {
+      console.error('Error response:', error.response.data)
+    }
   }
 }
 
