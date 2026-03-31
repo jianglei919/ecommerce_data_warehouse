@@ -457,7 +457,7 @@ MIT License - 用于教学目的
 - API Docs: http://localhost:8080/api/analytics/health
 - 项目文档: 见 `/docs` 目录
 
-##  Query example
+##  查询示例Query example
 1.Roll up
 
 //roll up info from day to month
