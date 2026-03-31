@@ -14,7 +14,7 @@
 3. [Technical Architecture](#technical-architecture)
 4. [Technology Stack Selection](#technology-stack-selection)
 5. [Layered Design Details](#layered-design-details)
-6. [Real-Time Synchronization Solution](#real-time-synchronization-solution-plan-d)
+6. [Real-Time Synchronization Solution](#real-time-synchronization-solution)
 7. [Deployment Architecture](#deployment-architecture)
 8. [Implementation Steps](#implementation-steps)
 9. [Risk Management](#risk-management)
@@ -927,7 +927,7 @@ onBeforeUnmount(() => {
 
 ---
 
-## Real-Time Synchronization Solution (Plan D)
+## Real-Time Synchronization Solution
 
 ### Architecture Process Flow
 
