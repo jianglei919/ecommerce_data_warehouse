@@ -54,6 +54,7 @@ docker-compose ps
 
 ✅ **实时数据同步** - Kafka 驱动的事件流处理  
 ✅ **异构数据源** - 支持多种数据格式 (INT vs VARCHAR)  
+✅ **统一订单视图** - App/Web 订单聚合和分析 (V2 新增)  
 ✅ **星型数据仓库** - 优化的分析数据模型  
 ✅ **容器化部署** - Docker Compose 一键启动  
 ✅ **可视化分析** - ECharts + Vue3 交互式仪表板  
@@ -80,6 +81,7 @@ ecommerce_data_warehouse/
 │   ├── 01-app-schema.sql                   # App 源系统数据库
 │   ├── 02-web-schema.sql                   # Web 源系统数据库
 │   ├── 03-warehouse-schema.sql             # 数据仓库数据库
+│   ├── 04-v2-migration.sql                 # V2: 统一订单表迁移脚本
 │   └── README.md                           # SQL 文档
 │
 ├── backend/                                 # Spring Boot 后端
@@ -88,14 +90,21 @@ ecommerce_data_warehouse/
 │   │   ├── config/
 │   │   │   ├── KafkaConfig.java            # Kafka 配置
 │   │   │   └── DataSourceConfig.java       # 多数据源
-│   │   ├── event/
-│   │   │   └── OrderEvent.java             # 事件模型
-│   │   ├── kafka/
-│   │   │   └── KafkaEventConsumer.java     # Kafka 消费者
+│   │   ├── domain/
+│   │   │   ├── UnifiedOrder.java           # V2: 统一订单模型
+│   │   │   └── UnifiedOrderItem.java       # V2: 统一订单项模型
+│   │   ├── mapper/
+│   │   │   ├── UnifiedOrderMapper.java     # V2: 订单数据访问层
+│   │   │   └── UnifiedOrderItemMapper.java # V2: 订单项数据访问层
+│   │   ├── controller/
+│   │   │   ├── AnalyticsController.java    # REST API - 分析
+│   │   │   └── UnifiedOrdersController.java # V2: REST API - 统一订单
 │   │   ├── service/
 │   │   │   └── ETLService.java             # ETL 核心逻辑
-│   │   └── controller/
-│   │       └── AnalyticsController.java    # REST API
+│   │   ├── event/
+│   │   │   └── OrderEvent.java             # 事件模型
+│   │   └── kafka/
+│   │       └── KafkaEventConsumer.java     # Kafka 消费者
 │   ├── src/main/resources/
 │   │   └── application.yml                 # 应用配置
 │   ├── pom.xml
@@ -112,7 +121,8 @@ ecommerce_data_warehouse/
 │   │       ├── Dashboard.vue               # 仪表板
 │   │       ├── SalesAnalytics.vue          # 销售分析
 │   │       ├── ProductInsights.vue         # 产品洞察
-│   │       └── SyncMonitor.vue             # 同步监控
+│   │       ├── SyncMonitor.vue             # 同步监控
+│   │       └── UnifiedOrders.vue           # V2: 统一订单仪表板
 │   ├── package.json
 │   ├── vite.config.ts
 │   ├── tsconfig.json
@@ -122,7 +132,10 @@ ecommerce_data_warehouse/
 │
 ├── docker-compose.yml                      # 容器编排配置
 ├── .gitignore
-├── REQUIREMENTS.md                         # 项目需求文档
+├── REQUIREMENTS.md                         # 项目需求文档 (already with V2 section)
+├── REQUIREMENTS_EN.md                      # 项目需求文档英文版 (already with V2 section)
+├── V2_REQUIREMENTS.md                      # V2 详细设计文档
+├── CHANGELOG.md                            # 版本更新日志
 ├── DATABASE_DESIGN.md                      # 数据库设计
 ├── TECH_SOLUTION.md                        # 技术解决方案
 └── README.md                               # 本文件

@@ -214,6 +214,188 @@ graph LR
 
 ---
 
+## Phase V2 - Requirements Update: Unified Orders Table
+
+### V2 Requirements Overview
+
+As the project evolves, the following new requirements have been added to the existing roadmap:
+
+1. **Unified Order Data Layer** - Create a unified orders table in the warehouse that consolidates order data from both App and Web business systems
+2. **Data Aggregation Foundation** - Existing Fact tables and subsequent analyses should be built on the new unified orders table
+3. **Management Dashboard UI** - Create a frontend interface to display integrated order data and statistics
+
+### V2 Data Structure Design
+
+#### Heterogeneous Source System Challenge
+
+Order identifier differences between the two business systems:
+
+| Dimension               | App System  | Web System             |
+| ----------------------- | ----------- | ---------------------- |
+| **Order ID Field Name** | order_id    | order_no               |
+| **Order ID Data Type**  | INT (12345) | VARCHAR (WEB-2024-001) |
+| **Date Format**         | yyyy-MM-dd  | MM/dd/yyyy             |
+
+#### Unified Orders Table Design
+
+**Table 1: unified_orders** (Unified Orders Master Table)
+
+```sql
+CREATE TABLE unified_orders (
+    unified_order_id INT PRIMARY KEY AUTO_INCREMENT,
+    source ENUM('APP', 'WEB') NOT NULL,        -- Data source identifier
+    app_order_id INT NULLABLE,                 -- App system Order ID
+    web_order_no VARCHAR(50) NULLABLE,         -- Web system Order Number
+    user_id INT NOT NULL,
+    order_date DATE NOT NULL,
+    total_amount DECIMAL(15, 2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_source_order (source, app_order_id, web_order_no),
+    KEY idx_source (source),
+    KEY idx_order_date (order_date),
+    KEY idx_user_id (user_id)
+);
+```
+
+**Table 2: unified_order_items** (Unified Order Details Table)
+
+```sql
+CREATE TABLE unified_order_items (
+    unified_item_id INT PRIMARY KEY AUTO_INCREMENT,
+    unified_order_id INT NOT NULL,             -- FK to unified_orders
+    product_id INT NOT NULL,
+    product_name VARCHAR(200) NOT NULL,
+    category VARCHAR(50),
+    quantity INT NOT NULL DEFAULT 1,
+    unit_price DECIMAL(10, 2) NOT NULL,
+    subtotal DECIMAL(15, 2) NOT NULL,
+    FOREIGN KEY (unified_order_id) REFERENCES unified_orders (unified_order_id),
+    KEY idx_unified_order_id (unified_order_id),
+    KEY idx_product_id (product_id)
+);
+```
+
+**Design Highlights:**
+
+- Composite unique constraint `(source, app_order_id, web_order_no)` ensures order uniqueness and traceability
+- source field identifies data origin for cross-source analysis
+- Two nullable ID fields serve App and Web data respectively
+- Details table contains necessary attributes for aggregation queries
+
+#### Sample Data
+
+```sql
+-- App source orders (6 records)
+INSERT INTO unified_orders (source, app_order_id, user_id, order_date, total_amount, status) VALUES
+('APP', 1001, 1, '2024-01-15', 999.99, 'completed'),
+('APP', 1002, 2, '2024-01-16', 599.99, 'completed'),
+('APP', 1003, 3, '2024-01-17', 1899.97, 'completed');
+
+-- Web source orders (10 records)
+INSERT INTO unified_orders (source, web_order_no, user_id, order_date, total_amount, status) VALUES
+('WEB', 'WEB-2024-001', 1, '2024-01-15', 899.99, 'completed'),
+('WEB', 'WEB-2024-002', 2, '2024-01-16', 229.99, 'completed'),
+('WEB', 'WEB-2024-003', 3, '2024-01-17', 1999.97, 'completed');
+
+-- Summary: Total 16 unified orders with 27 order items
+```
+
+### V2 API Interface Design
+
+#### Backend REST API Endpoints
+
+| Endpoint                                  | Method | Function                        | Query Parameters               |
+| ----------------------------------------- | ------ | ------------------------------- | ------------------------------ |
+| `/api/unified-orders`                     | GET    | Fetch orders list (paginated)   | page, pageSize, source, status |
+| `/api/unified-orders/{id}`                | GET    | Get order details with items    | -                              |
+| `/api/unified-orders/overview`            | GET    | Dashboard overview statistics   | -                              |
+| `/api/unified-orders/stats/by-source`     | GET    | Statistics by source (APP/WEB)  | -                              |
+| `/api/unified-orders/stats/product-sales` | GET    | Product sales analysis          | -                              |
+| `/api/unified-orders/by-source/{source}`  | GET    | Query orders by specific source | page, pageSize                 |
+
+**Response Example:**
+
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "unifiedOrderId": 1,
+      "source": "APP",
+      "appOrderId": 1001,
+      "webOrderNo": null,
+      "userId": 1,
+      "orderDate": "2024-01-15",
+      "totalAmount": 999.99,
+      "status": "completed"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 20,
+    "total": 16,
+    "totalPages": 1
+  },
+  "timestamp": "2026-03-31T01:24:34"
+}
+```
+
+### V2 Frontend Dashboard Design
+
+#### Unified Orders Dashboard (UnifiedOrders.vue)
+
+**Feature Modules:**
+
+1. **Overview Statistics Cards** - Display key metrics
+   - Total Orders: 16
+   - APP Orders: 6 (Amount: $8,699.86)
+   - WEB Orders: 10 (Amount: $9,589.34)
+
+2. **Filters** - Support multi-dimensional filtering
+   - Source filter (APP/WEB)
+   - Order status filter (pending/completed/cancelled)
+   - Search and sort
+
+3. **Order List** - Paginated table view
+   - Unified Order ID, Source, Order No., Date, Amount, Status
+   - Color coding: APP (blue), WEB (green)
+   - 20 records per page
+
+4. **Order Detail Modal** - Display order details
+   - Basic order information
+   - Associated order items (product, quantity, price)
+   - Order statistics
+
+5. **Analytics Dashboard** - Aggregated data view
+   - Sales statistics by source
+   - Top selling products
+
+### V2 Implementation Progress
+
+| Phase          | Task                                   | Status      | Completion Date |
+| -------------- | -------------------------------------- | ----------- | --------------- |
+| **Design**     | Unified orders table design            | ✅ Complete | 2026-03-30      |
+| **Database**   | Create table structures and indexes    | ✅ Complete | 2026-03-30      |
+| **Database**   | Insert sample data                     | ✅ Complete | 2026-03-30      |
+| **Backend**    | Implement domain models                | ✅ Complete | 2026-03-30      |
+| **Backend**    | Implement data access layer            | ✅ Complete | 2026-03-30      |
+| **Backend**    | Implement API controller (6 endpoints) | ✅ Complete | 2026-03-30      |
+| **Frontend**   | Create Vue3 component                  | ✅ Complete | 2026-03-30      |
+| **Frontend**   | Integrate routing and navigation       | ✅ Complete | 2026-03-30      |
+| **Deployment** | Rebuild Docker images                  | ✅ Complete | 2026-03-30      |
+| **Testing**    | API functionality testing              | ✅ Complete | 2026-03-30      |
+| **Testing**    | Frontend UI verification               | ✅ Complete | 2026-03-30      |
+
+### V2 Expected Benefits
+
+1. **Data Unification** - Eliminate App/Web system key type differences and provide a unified data view
+2. **Query Optimization** - Unified table structure enables more standardized Fact table construction
+3. **User Experience** - Administrators can monitor cross-source order data via the unified dashboard
+4. **Scalability** - Establishes foundation for future multi-source data integration
+
+---
+
 ## Key Principles
 
 ### All Analytics Queries Must Use the Data Warehouse

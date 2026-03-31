@@ -214,6 +214,188 @@ graph LR
 
 ---
 
+## V2 阶段 - 需求变更：统一订单表
+
+### V2 需求概述
+
+随着项目进展，在现有需求基础上新增以下需求：
+
+1. **统一订单数据层** - 在数据仓库中创建统一订单表，整合来自App和Web两个业务系统的订单数据
+2. **数据聚合基础** - 现有Fact表和后续分析应基于新的统一订单表构建
+3. **管理展示界面** - 创建前端界面展示整合后的订单数据及统计信息
+
+### V2 数据结构设计
+
+#### 源系统异构性问题
+
+两个业务系统的订单标识差异：
+
+| 维度               | App 系统    | Web 系统               |
+| ------------------ | ----------- | ---------------------- |
+| **订单ID字段名**   | order_id    | order_no               |
+| **订单ID数据类型** | INT (12345) | VARCHAR (WEB-2024-001) |
+| **日期格式**       | yyyy-MM-dd  | MM/dd/yyyy             |
+
+#### 统一订单表设计
+
+**表1: unified_orders** (统一订单主表)
+
+```sql
+CREATE TABLE unified_orders (
+    unified_order_id INT PRIMARY KEY AUTO_INCREMENT,
+    source ENUM('APP', 'WEB') NOT NULL,        -- 数据源标识
+    app_order_id INT NULLABLE,                 -- App系统订单ID
+    web_order_no VARCHAR(50) NULLABLE,         -- Web系统订单号
+    user_id INT NOT NULL,
+    order_date DATE NOT NULL,
+    total_amount DECIMAL(15, 2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_source_order (source, app_order_id, web_order_no),
+    KEY idx_source (source),
+    KEY idx_order_date (order_date),
+    KEY idx_user_id (user_id)
+);
+```
+
+**表2: unified_order_items** (统一订单明细表)
+
+```sql
+CREATE TABLE unified_order_items (
+    unified_item_id INT PRIMARY KEY AUTO_INCREMENT,
+    unified_order_id INT NOT NULL,             -- FK到unified_orders
+    product_id INT NOT NULL,
+    product_name VARCHAR(200) NOT NULL,
+    category VARCHAR(50),
+    quantity INT NOT NULL DEFAULT 1,
+    unit_price DECIMAL(10, 2) NOT NULL,
+    subtotal DECIMAL(15, 2) NOT NULL,
+    FOREIGN KEY (unified_order_id) REFERENCES unified_orders (unified_order_id),
+    KEY idx_unified_order_id (unified_order_id),
+    KEY idx_product_id (product_id)
+);
+```
+
+**设计要点**：
+
+- 复合唯一约束 `(source, app_order_id, web_order_no)` 确保订单的唯一性和可追溯性
+- source字段标识数据来源，便于后续跨源分析
+- 两个可为空的ID字段分别服务App和Web数据
+- 明细表包含必要的从属信息以支持聚合查询
+
+#### 示例数据
+
+```sql
+-- App来源订单 (6条)
+INSERT INTO unified_orders (source, app_order_id, user_id, order_date, total_amount, status) VALUES
+('APP', 1001, 1, '2024-01-15', 999.99, 'completed'),
+('APP', 1002, 2, '2024-01-16', 599.99, 'completed'),
+('APP', 1003, 3, '2024-01-17', 1899.97, 'completed');
+
+-- Web来源订单 (10条)
+INSERT INTO unified_orders (source, web_order_no, user_id, order_date, total_amount, status) VALUES
+('WEB', 'WEB-2024-001', 1, '2024-01-15', 899.99, 'completed'),
+('WEB', 'WEB-2024-002', 2, '2024-01-16', 229.99, 'completed'),
+('WEB', 'WEB-2024-003', 3, '2024-01-17', 1999.97, 'completed');
+
+-- 统计：总计16条统一订单，27个订单项
+```
+
+### V2 API 接口设计
+
+#### 后端REST API 端点
+
+| 端点                                      | 方法 | 功能                    | 查询参数                       |
+| ----------------------------------------- | ---- | ----------------------- | ------------------------------ |
+| `/api/unified-orders`                     | GET  | 获取订单列表（分页）    | page, pageSize, source, status |
+| `/api/unified-orders/{id}`                | GET  | 获取订单详情及关联项    | -                              |
+| `/api/unified-orders/overview`            | GET  | 获取仪表板概览统计      | -                              |
+| `/api/unified-orders/stats/by-source`     | GET  | 按数据源统计（APP/WEB） | -                              |
+| `/api/unified-orders/stats/product-sales` | GET  | 商品销售分析            | -                              |
+| `/api/unified-orders/by-source/{source}`  | GET  | 按特定源查询订单        | page, pageSize                 |
+
+**响应示例**：
+
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "unifiedOrderId": 1,
+      "source": "APP",
+      "appOrderId": 1001,
+      "webOrderNo": null,
+      "userId": 1,
+      "orderDate": "2024-01-15",
+      "totalAmount": 999.99,
+      "status": "completed"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 20,
+    "total": 16,
+    "totalPages": 1
+  },
+  "timestamp": "2026-03-31T01:24:34"
+}
+```
+
+### V2 前端展示设计
+
+#### 统一订单仪表板 (UnifiedOrders.vue)
+
+**功能模块**：
+
+1. **概览统计卡片** - 显示关键指标
+   - 总订单数：16
+   - APP订单数：6 (金额: $8,699.86)
+   - WEB订单数：10 (金额: $9,589.34)
+
+2. **过滤器** - 支持多维度筛选
+   - 数据源筛选 (APP/WEB)
+   - 订单状态筛选 (pending/completed/cancelled)
+   - 搜索和排序
+
+3. **订单列表** - 分页表格展示
+   - 统一订单ID、来源、订单号、日期、金额、状态
+   - 颜色编码：APP (蓝色)、WEB (绿色)
+   - 每页20条记录
+
+4. **订单详情弹窗** - 展示订单明细
+   - 订单基本信息
+   - 关联的订单项（商品、数量、价格）
+   - 订单统计信息
+
+5. **统计分析** - 数据聚合展示
+   - 按来源的销售统计
+   - 热销商品排行
+
+### V2 实现进度
+
+| 阶段       | 任务                     | 状态    | 完成时间   |
+| ---------- | ------------------------ | ------- | ---------- |
+| **设计**   | 统一订单表设计           | ✅ 完成 | 2026-03-30 |
+| **数据库** | 创建表结构及索引         | ✅ 完成 | 2026-03-30 |
+| **数据库** | 插入示例数据             | ✅ 完成 | 2026-03-30 |
+| **后端**   | 实现领域模型             | ✅ 完成 | 2026-03-30 |
+| **后端**   | 实现数据访问层           | ✅ 完成 | 2026-03-30 |
+| **后端**   | 实现API控制器（6个端点） | ✅ 完成 | 2026-03-30 |
+| **前端**   | 创建Vue3组件             | ✅ 完成 | 2026-03-30 |
+| **前端**   | 路由和导航集成           | ✅ 完成 | 2026-03-30 |
+| **部署**   | Docker镜像重建           | ✅ 完成 | 2026-03-30 |
+| **测试**   | API功能测试              | ✅ 完成 | 2026-03-30 |
+| **测试**   | 前端UI验证               | ✅ 完成 | 2026-03-30 |
+
+### V2 预期收益
+
+1. **数据统一** - 消除App/Web系统的键值类型差异，提供统一的数据视图
+2. **查询优化** - 统一表结构使后续Fact表构建更加规范化
+3. **用户体验** - 管理员可通过统一仪表板监控跨源订单数据
+4. **可扩展性** - 为后续多数据源集成奠定基础
+
+---
+
 ## 关键原则
 
 ### 所有分析查询都基于数据仓库
