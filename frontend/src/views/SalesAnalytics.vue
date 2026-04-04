@@ -122,7 +122,7 @@ const initChart = (categories: string[] = ['Electronics', 'Wearables', 'Audio', 
 
 const updateChart = () => {
   const categories = salesData.value.map(item => item.category)
-  const sales = salesData.value.map(item => parseInt(item.sales.replace(/,/g, '')))
+  const sales = salesData.value.map(item => item.rawSales || 0)
   const orders = salesData.value.map(item => item.orders)
   initChart(categories, sales, orders)
 }
@@ -149,6 +149,7 @@ const loadSalesData = async () => {
         key: String(index),
         category: item.category || `Category ${index + 1}`,
         sales: item.total_sales_amount ? `$${(item.total_sales_amount).toFixed(2)}` : '$0',
+        rawSales: item.total_sales_amount || 0,
         percentage: totalSales > 0 ? parseInt(((item.total_sales_amount / totalSales) * 100).toString()) : 0,
         orders: item.order_count || 0,
       }))
