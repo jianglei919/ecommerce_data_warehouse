@@ -132,6 +132,8 @@
                 v-model:value="diceCategories"
                 mode="multiple"
                 placeholder="Select Categories"
+                allow-clear
+                :max-tag-count="2"
                 @change="fetchDiceData"
               >
                 <a-select-option key="Electronics" value="Electronics">Electronics</a-select-option>
@@ -156,6 +158,8 @@
                 v-model:value="diceMonths"
                 mode="multiple"
                 placeholder="Select Months"
+                allow-clear
+                :max-tag-count="2"
                 @change="fetchDiceData"
               >
                 <a-select-option key="1" value="1">January</a-select-option>
