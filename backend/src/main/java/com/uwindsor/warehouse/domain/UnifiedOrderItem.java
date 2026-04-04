@@ -3,6 +3,7 @@ package com.uwindsor.warehouse.domain;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,20 +13,21 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * 统一订单项详情表
+ * 订单项维度表
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("unified_order_items")
+@TableName("dim_order_items")
 public class UnifiedOrderItem implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @TableId(value = "unified_item_id", type = IdType.AUTO)
+    @TableId(value = "item_id", type = IdType.AUTO)
     private Integer unifiedItemId;
 
-    /** 统一订单ID */
+    @TableField("order_id")
+    /** 订单ID */
     private Integer unifiedOrderId;
 
     /** 商品ID */

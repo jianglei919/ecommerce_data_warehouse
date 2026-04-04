@@ -43,9 +43,9 @@ public class AnalyticsController {
             String sql = "SELECT uoi.category, " +
                     "SUM(uoi.quantity) as total_quantity, " +
                     "SUM(uoi.subtotal) as total_sales_amount, " +
-                    "COUNT(DISTINCT uoi.unified_order_id) as order_count " +
-                    "FROM unified_order_items uoi " +
-                    "INNER JOIN unified_orders uo ON uoi.unified_order_id = uo.unified_order_id " +
+                    "COUNT(DISTINCT uoi.order_id) as order_count " +
+                    "FROM dim_order_items uoi " +
+                    "INNER JOIN dim_orders uo ON uoi.order_id = uo.order_id " +
                     "WHERE 1=1";
 
             if (startDate != null && !startDate.isEmpty()) {
@@ -101,11 +101,11 @@ public class AnalyticsController {
 
         try {
             String sql = "SELECT " +
-                    "COUNT(DISTINCT uo.unified_order_id) as total_orders, " +
+                    "COUNT(DISTINCT uo.order_id) as total_orders, " +
                     "COALESCE(SUM(uoi.quantity), 0) as total_quantity, " +
                     "COALESCE(SUM(uoi.subtotal), 0) as total_sales_amount " +
-                    "FROM unified_orders uo " +
-                    "LEFT JOIN unified_order_items uoi ON uo.unified_order_id = uoi.unified_order_id " +
+                    "FROM dim_orders uo " +
+                    "LEFT JOIN dim_order_items uoi ON uo.order_id = uoi.order_id " +
                     "WHERE 1=1";
 
             if (startDate != null && !startDate.isEmpty()) {
@@ -161,15 +161,15 @@ public class AnalyticsController {
                 whereClause = " AND uo.source = '" + source + "'";
             }
 
-            // 通过unified_orders关联获取source，确保product_id + source的正确匹配
+            // 通过dim_orders关联获取source，确保product_id + source的正确匹配
             String sql = "SELECT dp.source, dp.product_id, dp.product_name, dp.category, dp.brand, " +
-                    "COUNT(DISTINCT uoi.unified_order_id) as sales_count, " +
+                    "COUNT(DISTINCT uoi.order_id) as sales_count, " +
                     "SUM(uoi.quantity) as total_quantity, " +
                     "SUM(uoi.subtotal) as total_sales_amount, " +
                     "ROUND(SUM(uoi.subtotal) / SUM(uoi.quantity), 2) as avg_price " +
                     "FROM dim_products dp " +
-                    "LEFT JOIN unified_order_items uoi ON uoi.product_id = dp.product_id " +
-                    "LEFT JOIN unified_orders uo ON uoi.unified_order_id = uo.unified_order_id " +
+                    "LEFT JOIN dim_order_items uoi ON uoi.product_id = dp.product_id " +
+                    "LEFT JOIN dim_orders uo ON uoi.order_id = uo.order_id " +
                     "WHERE 1=1 " +
                     "AND dp.source = IFNULL(uo.source, dp.source) " +
                     whereClause +

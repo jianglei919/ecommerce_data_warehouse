@@ -15,11 +15,11 @@ import java.util.Map;
 public interface UnifiedOrderMapper extends BaseMapper<UnifiedOrder> {
 
     /**
-     * 查询所有统一订单及其项目详情
+     * 查询所有订单及其项目详情
      */
     @Select("""
                 SELECT
-                    uo.unified_order_id,
+                    uo.order_id,
                     uo.source,
                     uo.app_order_id,
                     uo.web_order_no,
@@ -27,12 +27,12 @@ public interface UnifiedOrderMapper extends BaseMapper<UnifiedOrder> {
                     uo.order_date,
                     uo.total_amount,
                     uo.status,
-                    COUNT(uoi.unified_item_id) as item_count,
+                    COUNT(uoi.item_id) as item_count,
                     uo.created_at,
                     uo.updated_at
-                FROM unified_orders uo
-                LEFT JOIN unified_order_items uoi ON uo.unified_order_id = uoi.unified_order_id
-                GROUP BY uo.unified_order_id
+                FROM dim_orders uo
+                LEFT JOIN dim_order_items uoi ON uo.order_id = uoi.order_id
+                GROUP BY uo.order_id
                 ORDER BY uo.order_date DESC, uo.created_at DESC
             """)
     List<Map<String, Object>> selectOrdersWithItemCount();
@@ -46,7 +46,7 @@ public interface UnifiedOrderMapper extends BaseMapper<UnifiedOrder> {
                     COUNT(*) as order_count,
                     SUM(total_amount) as total_sales,
                     AVG(total_amount) as avg_order_value
-                FROM unified_orders
+                FROM dim_orders
                 GROUP BY source
             """)
     List<Map<String, Object>> selectOrderStatsBySource();

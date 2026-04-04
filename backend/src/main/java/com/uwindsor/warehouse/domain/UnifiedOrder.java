@@ -13,18 +13,18 @@ import java.time.LocalDateTime;
 import java.time.LocalDate;
 
 /**
- * 统一订单表 (V2新增)
+ * 订单维度表 (V2新增)
  * 聚合来自App和Web两个业务数据源的订单数据
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("unified_orders")
+@TableName("dim_orders")
 public class UnifiedOrder implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @TableId(value = "unified_order_id", type = IdType.AUTO)
+    @TableId(value = "order_id", type = IdType.AUTO)
     private Integer unifiedOrderId;
 
     /** 数据源: APP 或 WEB */

@@ -7,10 +7,10 @@
 --   - 支持OLAP多维度分析
 --   - Star Schema: 维度表 (dim_products) + 事实表 (fact_sales_by_product_time)
 -- =====================================================
--- 统一订单表: 聚合来自App和Web两个业务源的订单数据
+-- 订单维度表: 聚合来自App和Web两个业务源的订单数据
 CREATE TABLE
-    unified_orders (
-        unified_order_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '统一订单ID',
+    dim_orders (
+        order_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '订单ID',
         source VARCHAR(10) NOT NULL COMMENT 'APP 或 WEB',
         app_order_id INT COMMENT 'App系统订单ID',
         web_order_no VARCHAR(50) COMMENT 'Web系统订单号',
@@ -26,13 +26,13 @@ CREATE TABLE
         KEY idx_user_id (user_id),
         KEY idx_status (status),
         KEY idx_source_date (source, order_date)
-    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '统一订单表 (App+Web)';
+    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '订单维度表 (App+Web)';
 
--- 统一订单项详情表
+-- 订单项维度表
 CREATE TABLE
-    unified_order_items (
-        unified_item_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '统一订单项ID',
-        unified_order_id INT NOT NULL,
+    dim_order_items (
+        item_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '订单项ID',
+        order_id INT NOT NULL,
         product_id INT NOT NULL COMMENT '商品ID',
         product_name VARCHAR(200) NOT NULL COMMENT '商品名称',
         category VARCHAR(50) COMMENT '商品类别',
@@ -41,11 +41,11 @@ CREATE TABLE
         subtotal DECIMAL(15, 2) NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (unified_order_id) REFERENCES unified_orders (unified_order_id) ON DELETE CASCADE,
-        KEY idx_unified_order_id (unified_order_id),
+        FOREIGN KEY (order_id) REFERENCES dim_orders (order_id) ON DELETE CASCADE,
+        KEY idx_order_id (order_id),
         KEY idx_product_id (product_id),
         KEY idx_category (category)
-    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '统一订单项详情表';
+    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '订单项维度表';
 
 -- =====================================================
 -- Star Schema 维度表和事实表
@@ -191,8 +191,8 @@ VALUES
 
 -- 插入聚合订单数据
 INSERT INTO
-    unified_orders (
-        unified_order_id,
+    dim_orders (
+        order_id,
         source,
         app_order_id,
         web_order_no,
@@ -405,8 +405,8 @@ VALUES
 
 -- 插入订单项数据 (25条订单项, 来自上面插入的15个订单)
 INSERT INTO
-    unified_order_items (
-        unified_order_id,
+    dim_order_items (
+        order_id,
         product_id,
         product_name,
         category,
@@ -749,8 +749,8 @@ SELECT
     SUM(uoi.quantity) as total_quantity,
     SUM(uoi.subtotal) as total_sales_amount
 FROM
-    unified_order_items uoi
-    JOIN unified_orders uo ON uoi.unified_order_id = uo.unified_order_id
+    dim_order_items uoi
+    JOIN dim_orders uo ON uoi.order_id = uo.order_id
     JOIN dim_products dp ON uoi.product_id = dp.product_id
 GROUP BY
     dp.product_key,

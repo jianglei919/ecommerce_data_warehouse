@@ -36,7 +36,7 @@ public class UnifiedOrdersController {
 
     private static final RowMapper<UnifiedOrder> UNIFIED_ORDER_ROW_MAPPER = (rs, rowNum) -> {
         UnifiedOrder order = new UnifiedOrder();
-        order.setUnifiedOrderId(rs.getInt("unified_order_id"));
+        order.setUnifiedOrderId(rs.getInt("order_id"));
         order.setSource(rs.getString("source"));
         order.setAppOrderId((Integer) rs.getObject("app_order_id"));
         order.setWebOrderNo(rs.getString("web_order_no"));
@@ -62,7 +62,7 @@ public class UnifiedOrdersController {
             result.put("status", "success");
 
             // 构建查询SQL
-            StringBuilder sql = new StringBuilder("SELECT * FROM unified_orders WHERE 1=1");
+            StringBuilder sql = new StringBuilder("SELECT * FROM dim_orders WHERE 1=1");
             List<Object> params = new ArrayList<>();
 
             if (source != null && !source.isEmpty()) {
@@ -74,10 +74,10 @@ public class UnifiedOrdersController {
                 params.add(status.toLowerCase());
             }
 
-            sql.append(" ORDER BY order_date DESC, unified_order_id DESC");
+            sql.append(" ORDER BY order_date DESC, order_id DESC");
 
             // 获取总数
-            String countSql = "SELECT COUNT(*) FROM unified_orders WHERE 1=1";
+            String countSql = "SELECT COUNT(*) FROM dim_orders WHERE 1=1";
             List<Object> countParams = new ArrayList<>();
             if (source != null && !source.isEmpty()) {
                 countSql += " AND source = ?";
@@ -126,7 +126,7 @@ public class UnifiedOrdersController {
 
         try {
             // 查询订单主表
-            String orderSql = "SELECT * FROM unified_orders WHERE unified_order_id = ?";
+            String orderSql = "SELECT * FROM dim_orders WHERE order_id = ?";
             List<UnifiedOrder> orders = jdbcTemplate.query(orderSql, UNIFIED_ORDER_ROW_MAPPER, unifiedOrderId);
 
             if (orders.isEmpty()) {
@@ -140,17 +140,17 @@ public class UnifiedOrdersController {
             // 查询订单项
             String itemsSql = """
                     SELECT
-                        unified_item_id, unified_order_id, product_id,
+                        item_id, order_id, product_id,
                         product_name, category, quantity, unit_price, subtotal
-                    FROM unified_order_items
-                    WHERE unified_order_id = ?
+                    FROM dim_order_items
+                    WHERE order_id = ?
                     """;
 
             List<Map<String, Object>> itemMaps = jdbcTemplate.queryForList(itemsSql, unifiedOrderId);
             List<UnifiedOrderItem> items = itemMaps.stream().map(map -> {
                 UnifiedOrderItem item = new UnifiedOrderItem();
-                item.setUnifiedItemId(((Number) map.get("unified_item_id")).intValue());
-                item.setUnifiedOrderId(((Number) map.get("unified_order_id")).intValue());
+                item.setUnifiedItemId(((Number) map.get("item_id")).intValue());
+                item.setUnifiedOrderId(((Number) map.get("order_id")).intValue());
                 item.setProductId(((Number) map.get("product_id")).intValue());
                 item.setProductName((String) map.get("product_name"));
                 item.setCategory((String) map.get("category"));
@@ -280,9 +280,9 @@ public class UnifiedOrdersController {
     public ResponseEntity<?> getOverview() {
 
         try {
-            String totalSql = "SELECT COUNT(*) FROM unified_orders";
-            String appSql = "SELECT COUNT(*) FROM unified_orders WHERE source = 'APP'";
-            String webSql = "SELECT COUNT(*) FROM unified_orders WHERE source = 'WEB'";
+            String totalSql = "SELECT COUNT(*) FROM dim_orders";
+            String appSql = "SELECT COUNT(*) FROM dim_orders WHERE source = 'APP'";
+            String webSql = "SELECT COUNT(*) FROM dim_orders WHERE source = 'WEB'";
 
             Integer totalOrders = jdbcTemplate.queryForObject(totalSql, Integer.class);
             Integer appOrders = jdbcTemplate.queryForObject(appSql, Integer.class);
@@ -294,7 +294,7 @@ public class UnifiedOrdersController {
                         COUNT(*) as order_count,
                         SUM(total_amount) as total_sales,
                         AVG(total_amount) as avg_order_value
-                    FROM unified_orders
+                    FROM dim_orders
                     GROUP BY source
                     ORDER BY source
                     """;
