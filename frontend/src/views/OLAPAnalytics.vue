@@ -272,7 +272,7 @@ const activeTab = ref('rollup')
 const fetchRollupData = async () => {
   rollupLoading.value = true
   try {
-    let url = `${API_URL}/api/unified-orders/analytics/rollup`
+    let url = '/api/unified-orders/analytics/rollup'
     const params = new URLSearchParams()
     if (rollupCategory.value) params.append('category', rollupCategory.value)
     if (rollupYear.value) params.append('year', String(rollupYear.value))
@@ -292,7 +292,7 @@ const fetchRollupData = async () => {
 const fetchDrilldownData = async () => {
   drilldownLoading.value = true
   try {
-    let url = `${API_URL}/api/unified-orders/analytics/drilldown`
+    let url = '/api/unified-orders/analytics/drilldown'
     const params = new URLSearchParams()
     if (drilldownCategory.value) params.append('category', drilldownCategory.value)
     if (drilldownYear.value) params.append('year', String(drilldownYear.value))
@@ -313,7 +313,7 @@ const fetchDrilldownData = async () => {
 const fetchSliceData = async () => {
   sliceLoading.value = true
   try {
-    let url = `${API_URL}/api/unified-orders/analytics/slice`
+    let url = '/api/unified-orders/analytics/slice'
     const params = new URLSearchParams()
     if (sliceCategory.value) params.append('category', sliceCategory.value)
     if (sliceYear.value) params.append('year', String(sliceYear.value))
@@ -336,7 +336,7 @@ const fetchSliceData = async () => {
 const fetchDiceData = async () => {
   diceLoading.value = true
   try {
-    let url = `${API_URL}/api/unified-orders/analytics/dice`
+    let url = '/api/unified-orders/analytics/dice'
     const params = new URLSearchParams()
     if (diceCategories.value.length) params.append('categories', diceCategories.value.join(','))
     if (diceYear.value) params.append('year', String(diceYear.value))
@@ -357,7 +357,7 @@ const fetchDiceData = async () => {
 const fetchPivotData = async () => {
   pivotLoading.value = true
   try {
-    let url = `${API_URL}/api/unified-orders/analytics/pivot`
+    let url = '/api/unified-orders/analytics/pivot'
     const params = new URLSearchParams()
     if (pivotYear.value) params.append('year', String(pivotYear.value))
     if (params.toString()) url += `?${params.toString()}`
