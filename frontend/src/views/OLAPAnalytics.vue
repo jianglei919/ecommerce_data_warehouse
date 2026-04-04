@@ -113,7 +113,7 @@
               />
             </a-col>
           </a-row>
-          <div ref="sliceChartRef" style="width: 100%; height: 400px; margin-bottom: 20px"></div>
+          <div ref="sliceChartRef" style="width: 100%; height: 250px; margin-bottom: 10px"></div>
           <a-table
             :columns="sliceColumns"
             :data-source="sliceData"
