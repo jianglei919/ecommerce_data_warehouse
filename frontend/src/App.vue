@@ -3,7 +3,7 @@
     <!-- 顶部导航 -->
     <header class="app-header">
       <div class="header-content">
-        <h1 class="app-title">📊 E-Commerce Data Warehouse</h1>
+        <h1 class="app-title">E-Commerce Data Warehouse</h1>
         <nav class="app-nav">
           <ul>
             <li><router-link to="/">Dashboard</router-link></li>
