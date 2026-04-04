@@ -249,7 +249,7 @@ const drilldownLoading = ref(false)
 const drilldownColumns = [
   { title: 'Product', dataIndex: 'product_name', key: 'product' },
   { title: 'Category', dataIndex: 'category', key: 'category' },
-  { title: 'Date', dataIndex: ['year', 'month', 'day'], key: 'date', render: (_, record: any) => `${record.year}-${String(record.month).padStart(2, '0')}-${String(record.day).padStart(2, '0')}` },
+  { title: 'Date', dataIndex: 'formatDate', key: 'date' },
   { title: 'Quantity', dataIndex: 'total_quantity', key: 'qty' },
   { title: 'Amount', dataIndex: 'total_sales_amount', key: 'amount', render: (val:number) => `$${val.toFixed(2)}` },
 ]
@@ -322,7 +322,11 @@ const fetchDrilldownData = async () => {
 
     const response = await fetch(url)
     const result = await response.json()
-    drilldownData.value = result.data.map((item: any, idx: number) => ({ ...item, key: idx }))
+    drilldownData.value = result.data.map((item: any, idx: number) => ({
+      ...item,
+      key: idx,
+      formatDate: `${item.year}-${String(item.month).padStart(2, '0')}-${String(item.day).padStart(2, '0')}`
+    }))
   } catch (error) {
     message.error('Failed to load drilldown data')
     console.error(error)
