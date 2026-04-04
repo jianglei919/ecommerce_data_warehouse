@@ -21,6 +21,12 @@ export const analyticsApi = {
       params: { startDate, endDate },
     }),
 
+  // 获取销售总统计
+  getSalesSummary: (startDate?: string, endDate?: string) =>
+    apiClient.get('/api/analytics/sales/summary', {
+      params: { startDate, endDate },
+    }),
+
   // 获取热门商品
   getTopRatedProducts: (limit: number = 10) =>
     apiClient.get('/api/analytics/products/top-rated', {

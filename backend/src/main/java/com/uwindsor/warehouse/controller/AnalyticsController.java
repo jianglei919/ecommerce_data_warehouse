@@ -43,9 +43,9 @@ public class AnalyticsController {
             String sql = "SELECT uoi.category, " +
                     "SUM(uoi.quantity) as total_quantity, " +
                     "SUM(uoi.subtotal) as total_sales_amount, " +
-                    "COUNT(DISTINCT uo.unified_order_id) as order_count " +
+                    "COUNT(DISTINCT uoi.unified_order_id) as order_count " +
                     "FROM unified_order_items uoi " +
-                    "JOIN unified_orders uo ON uoi.unified_order_id = uo.unified_order_id " +
+                    "INNER JOIN unified_orders uo ON uoi.unified_order_id = uo.unified_order_id " +
                     "WHERE 1=1";
 
             if (startDate != null && !startDate.isEmpty()) {
@@ -85,6 +85,58 @@ public class AnalyticsController {
 
         } catch (Exception e) {
             log.error("Error fetching sales by category: {}", e.getMessage());
+            return ResponseEntity.status(500).body(Map.of(
+                    "status", "error",
+                    "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * 获取总统计数据（总销售额、总订单数等）
+     */
+    @GetMapping("/sales/summary")
+    public ResponseEntity<?> getSalesSummary(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+
+        try {
+            String sql = "SELECT " +
+                    "COUNT(DISTINCT uo.unified_order_id) as total_orders, " +
+                    "SUM(uoi.quantity) as total_quantity, " +
+                    "SUM(uoi.subtotal) as total_sales_amount " +
+                    "FROM unified_order_items uoi " +
+                    "INNER JOIN unified_orders uo ON uoi.unified_order_id = uo.unified_order_id " +
+                    "WHERE 1=1";
+
+            if (startDate != null && !startDate.isEmpty()) {
+                sql += " AND uo.order_date >= '" + startDate + "'";
+            }
+            if (endDate != null && !endDate.isEmpty()) {
+                sql += " AND uo.order_date <= '" + endDate + "'";
+            }
+
+            Connection conn = warehouseDataSource.getConnection();
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+
+            Map<String, Object> result = new HashMap<>();
+            if (rs.next()) {
+                result.put("total_orders", rs.getInt("total_orders"));
+                result.put("total_quantity", rs.getInt("total_quantity"));
+                result.put("total_sales_amount", rs.getDouble("total_sales_amount"));
+            }
+
+            rs.close();
+            stmt.close();
+            conn.close();
+
+            result.put("status", "success");
+            result.put("timestamp", LocalDateTime.now());
+
+            return ResponseEntity.ok(result);
+
+        } catch (Exception e) {
+            log.error("Error fetching sales summary: {}", e.getMessage());
             return ResponseEntity.status(500).body(Map.of(
                     "status", "error",
                     "message", e.getMessage()));

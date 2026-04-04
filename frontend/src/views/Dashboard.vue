@@ -103,12 +103,12 @@ const reviewsCount = ref(0)
 // 加载Dashboard统计数据
 const loadDashboardStats = async () => {
   try {
-    const response = await analyticsApi.getSalesByCategory()
+    // 获取精确的总统计数据（不会有重复计数问题）
+    const response = await analyticsApi.getSalesSummary()
     
-    if (response && response.data && response.data.length > 0) {
-      // 计算总销售额和订单数
-      const orders = response.data.reduce((sum: number, item: any) => sum + (item.order_count || 0), 0)
-      const sales = response.data.reduce((sum: number, item: any) => sum + (item.total_sales_amount || 0), 0)
+    if (response && response.total_orders !== undefined) {
+      const orders = response.total_orders || 0
+      const sales = response.total_sales_amount || 0
       
       totalOrders.value = orders
       totalSales.value = sales
