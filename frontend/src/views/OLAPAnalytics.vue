@@ -6,9 +6,10 @@
         <a-tab-pane key="rollup" tab="📈 Rollup (Monthly Aggregation)">
           <a-row :gutter="[16, 16]" style="margin-bottom: 20px">
             <a-col :xs="24" :sm="12">
+              <div style="margin-bottom: 8px; font-weight: 500">Category (Optional)</div>
               <a-select
                 v-model:value="rollupCategory"
-                placeholder="Filter by Category (optional)"
+                placeholder="Filter by Category"
                 allow-clear
                 @change="fetchRollupData"
               >
@@ -20,9 +21,10 @@
               </a-select>
             </a-col>
             <a-col :xs="24" :sm="12">
+              <div style="margin-bottom: 8px; font-weight: 500">Year (Optional)</div>
               <a-input-number
                 v-model:value="rollupYear"
-                placeholder="Year (optional)"
+                placeholder="Year"
                 @change="fetchRollupData"
                 :min="2020"
                 :max="2030"
@@ -42,6 +44,7 @@
         <a-tab-pane key="drilldown" tab="🔎 Drilldown (Product Detail)">
           <a-row :gutter="[16, 16]" style="margin-bottom: 20px">
             <a-col :xs="24" :sm="8">
+              <div style="margin-bottom: 8px; font-weight: 500">Category</div>
               <a-select
                 v-model:value="drilldownCategory"
                 placeholder="Select Category"
@@ -54,6 +57,7 @@
               </a-select>
             </a-col>
             <a-col :xs="24" :sm="8">
+              <div style="margin-bottom: 8px; font-weight: 500">Year</div>
               <a-input-number
                 v-model:value="drilldownYear"
                 placeholder="Year"
@@ -63,9 +67,10 @@
               />
             </a-col>
             <a-col :xs="24" :sm="8">
+              <div style="margin-bottom: 8px; font-weight: 500">Month (Optional)</div>
               <a-input-number
                 v-model:value="drilldownMonth"
-                placeholder="Month (optional)"
+                placeholder="Month"
                 @change="fetchDrilldownData"
                 :min="1"
                 :max="12"
@@ -85,6 +90,7 @@
         <a-tab-pane key="slice" tab="🔀 Slice (Category Trend)">
           <a-row :gutter="[16, 16]" style="margin-bottom: 20px">
             <a-col :xs="24" :sm="12">
+              <div style="margin-bottom: 8px; font-weight: 500">Category</div>
               <a-select
                 v-model:value="sliceCategory"
                 placeholder="Select Category"
@@ -97,6 +103,7 @@
               </a-select>
             </a-col>
             <a-col :xs="24" :sm="12">
+              <div style="margin-bottom: 8px; font-weight: 500">Year</div>
               <a-input-number
                 v-model:value="sliceYear"
                 placeholder="Year"
@@ -120,6 +127,7 @@
         <a-tab-pane key="dice" tab="🎲 Dice (Multi-Dimensional Filter)">
           <a-row :gutter="[16, 16]" style="margin-bottom: 20px">
             <a-col :xs="24" :sm="8">
+              <div style="margin-bottom: 8px; font-weight: 500">Categories</div>
               <a-select
                 v-model:value="diceCategories"
                 mode="multiple"
@@ -133,6 +141,7 @@
               </a-select>
             </a-col>
             <a-col :xs="24" :sm="8">
+              <div style="margin-bottom: 8px; font-weight: 500">Year</div>
               <a-input-number
                 v-model:value="diceYear"
                 placeholder="Year"
@@ -142,6 +151,7 @@
               />
             </a-col>
             <a-col :xs="24" :sm="8">
+              <div style="margin-bottom: 8px; font-weight: 500">Months</div>
               <a-select
                 v-model:value="diceMonths"
                 mode="multiple"
@@ -176,6 +186,7 @@
         <a-tab-pane key="pivot" tab="🔄 Pivot (Month × Category)">
           <a-row :gutter="[16, 16]" style="margin-bottom: 20px">
             <a-col :xs="24" :sm="12">
+              <div style="margin-bottom: 8px; font-weight: 500">Year</div>
               <a-input-number
                 v-model:value="pivotYear"
                 placeholder="Year"
@@ -219,10 +230,12 @@ const rollupCategory = ref<string | null>(null)
 const rollupYear = ref<number | null>(2024)
 const rollupData = ref([])
 const rollupLoading = ref(false)
+const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
 const rollupColumns = [
   { title: 'Category', dataIndex: 'category', key: 'category' },
   { title: 'Year', dataIndex: 'year', key: 'year' },
-  { title: 'Month', dataIndex: 'month', key: 'month' },
+  { title: 'Month', dataIndex: 'month', key: 'month', render: (val: number) => monthNames[val] || `Month ${val}` },
   { title: 'Quantity', dataIndex: 'monthly_qty', key: 'qty' },
   { title: 'Sales', dataIndex: 'monthly_sales', key: 'sales', render: (val:number) => `$${val.toFixed(2)}` },
 ]
@@ -262,7 +275,7 @@ const diceLoading = ref(false)
 const diceColumns = [
   { title: 'Category', dataIndex: 'category', key: 'category' },
   { title: 'Year', dataIndex: 'year', key: 'year' },
-  { title: 'Month', dataIndex: 'month', key: 'month' },
+  { title: 'Month', dataIndex: 'month', key: 'month', render: (val: number) => monthNames[val] || `Month ${val}` },
   { title: 'Quantity', dataIndex: 'qty', key: 'qty' },
   { title: 'Sales', dataIndex: 'sales', key: 'sales', render: (val:number) => `$${val.toFixed(2)}` },
 ]
@@ -409,8 +422,10 @@ const updateSliceChart = () => {
 // Load data on mount
 onMounted(() => {
   fetchRollupData()
-  // Pre-load Dice data with default selections
+  fetchDrilldownData()
+  fetchSliceData()
   fetchDiceData()
+  fetchPivotData()
 })
 </script>
 
