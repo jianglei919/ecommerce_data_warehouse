@@ -261,7 +261,7 @@ const sliceYear = ref<number>(2024)
 const sliceData = ref([])
 const sliceLoading = ref(false)
 const sliceColumns = [
-  { title: 'Date', dataIndex: ['year', 'month', 'day'], key: 'date', render: (_, record: any) => `${record.year}-${String(record.month).padStart(2, '0')}-${String(record.day).padStart(2, '0')}` },
+  { title: 'Date', key: 'date', render: (_, record: any) => `${record.year}-${String(record.month).padStart(2, '0')}-${String(record.day).padStart(2, '0')}` },
   { title: 'Quantity', dataIndex: 'total_quantity', key: 'qty' },
   { title: 'Sales', dataIndex: 'total_sales_amount', key: 'sales', render: (val:number) => `$${val.toFixed(2)}` },
 ]
