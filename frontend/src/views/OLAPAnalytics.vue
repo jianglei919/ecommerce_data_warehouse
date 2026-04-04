@@ -202,7 +202,7 @@
             </a-col>
           </a-row>
           <!-- Chart -->
-          <div ref="pivotChartRef" style="width: 100%; height: 400px; margin-bottom: 30px" v-if="!pivotLoading" />
+          <div ref="pivotChartRef" style="width: 100%; height: 400px; margin-bottom: 30px" />
           <!-- Table (optional detailed view) -->
           <div style="overflow-x: auto">
             <a-table
@@ -238,7 +238,7 @@ const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 
 const rollupColumns = [
   { title: 'Category', dataIndex: 'category', key: 'category' },
   { title: 'Year', dataIndex: 'year', key: 'year' },
-  { title: 'Month', dataIndex: 'month', key: 'month', render: (_, record: any) => monthNames[record.month] || `Month ${record.month}` },
+  { title: 'Month', dataIndex: 'month', key: 'month', render: (text: number) => monthNames[text] || `Month ${text}` },
   { title: 'Quantity', dataIndex: 'monthly_qty', key: 'qty' },
   { title: 'Sales', dataIndex: 'monthly_sales', key: 'sales', render: (val:number) => `$${val.toFixed(2)}` },
 ]
@@ -278,7 +278,7 @@ const diceLoading = ref(false)
 const diceColumns = [
   { title: 'Category', dataIndex: 'category', key: 'category' },
   { title: 'Year', dataIndex: 'year', key: 'year' },
-  { title: 'Month', dataIndex: 'month', key: 'month', render: (_: any, record: any) => monthNames[record.month] || `Month ${record.month}` },
+  { title: 'Month', dataIndex: 'month', key: 'month', render: (text: number) => monthNames[text] || `Month ${text}` },
   { title: 'Quantity', dataIndex: 'qty', key: 'qty' },
   { title: 'Sales', dataIndex: 'sales', key: 'sales', render: (val:number) => `$${val.toFixed(2)}` },
 ]
