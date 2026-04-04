@@ -283,6 +283,44 @@ public class AnalyticsController {
     }
 
     /**
+     * 直接测试 - 通过 @RequestParam 而不是 @RequestBody 来避免 JSON 反序列化问题
+     */
+    @PostMapping("/test/simple-order")
+    public ResponseEntity<?> sendSimpleOrder(
+            @RequestParam String orderId,
+            @RequestParam(required = false) Double totalAmount,
+            @RequestParam(required = false) String eventType) {
+        try {
+            OrderEvent event = OrderEvent.builder()
+                    .eventId(UUID.randomUUID().toString())
+                    .orderId(orderId)
+                    .totalAmount(totalAmount != null ? totalAmount : 0.0)
+                    .eventType(eventType != null ? eventType : "ORDER_CREATED")
+                    .source("APP")
+                    .orderDate(LocalDateTime.now().toString())
+                    .orderStatus("PENDING")
+                    .itemCount(1)
+                    .eventTimestamp(System.currentTimeMillis())
+                    .createdAt(LocalDateTime.now())
+                    .retryCount(0)
+                    .build();
+
+            log.info("[PARAM] Sending order: id={}, orderId={}, amount={}, type={}",
+                    event.getEventId(), event.getOrderId(), event.getTotalAmount(), event.getEventType());
+
+            kafkaTemplate.send("order-events", event.getEventId(), event);
+
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "event_id", event.getEventId(),
+                    "message", "Simple order sent"));
+        } catch (Exception e) {
+            log.error("[PARAM] Error: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
      * 测试 Jackson 反序列化
      */
     @PostMapping("/test/deserialize-test")
