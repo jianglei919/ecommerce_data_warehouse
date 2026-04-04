@@ -147,16 +147,17 @@ public class ETLService {
     private void recordSyncLog(Connection conn, OrderEvent event, String status, String errorMessage) throws Exception {
         String logSql = """
                 INSERT INTO sync_log
-                (event_type, source, order_id, status, error_message, sync_time)
-                VALUES (?, ?, ?, ?, ?, NOW())
+                (event_id, event_type, source, order_id, status, error_message, sync_time)
+                VALUES (?, ?, ?, ?, ?, ?, NOW())
                 """;
 
         try (PreparedStatement stmt = conn.prepareStatement(logSql)) {
-            stmt.setString(1, event.getEventType()); // event_type
-            stmt.setString(2, event.getSource()); // source
-            stmt.setString(3, event.getOrderId()); // order_id
-            stmt.setString(4, status); // status
-            stmt.setString(5, errorMessage); // error_message
+            stmt.setString(1, event.getEventId()); // event_id
+            stmt.setString(2, event.getEventType()); // event_type
+            stmt.setString(3, event.getSource()); // source
+            stmt.setString(4, event.getOrderId()); // order_id
+            stmt.setString(5, status); // status
+            stmt.setString(6, errorMessage); // error_message
 
             stmt.executeUpdate();
             log.debug("Sync log recorded: event={}, status={}", event.getEventId(), status);
