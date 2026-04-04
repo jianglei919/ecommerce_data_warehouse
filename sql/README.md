@@ -1,49 +1,57 @@
 # SQL 初始化脚本
 
-本目录包含三个数据库的初始化脚本，用于快速启动项目演示。
+本目录包含数据仓库的核心初始化脚本，提供多源系统的原始数据和 Star Schema 结构。
+**最后更新**: 从运行容器提取真实数据 (2024-01-15 到 2024-02-10 的 20 条订单)
 
 ## 📋 文件说明
 
 ### 1. `01-app-schema.sql` - App业务系统 📱
 
 - **数据库名**: `ecommerce_source_app`
+- **数据时间范围**: 2024-01-15 到 2024-02-10
 - **特点**:
-  - `orders` 表主键: `order_id` (INT 类型)
+  - `orders` 表主键: `order_id` (INT AUTO_INCREMENT 类型)
   - `order_date`: yyyy-MM-dd 格式
-  - 包含 5 个用户、10 个产品、10 个订单及示例数据
+  - 包含 **10 个用户**、**10 个产品**、**10 个订单** 的真实数据
+  - 所有数据通过 mysqldump 从运行容器提取
 - **表结构**:
-  - users (用户表)
-  - products (产品表)
-  - orders (订单表)
-  - order_items (订单项目表)
-  - product_reviews (产品评论表)
+  - `users` - 用户表 (10 条记录)
+  - `products` - 产品表 (10 条记录)
+  - `orders` - 订单表 (10 条订单记录)
+  - `order_items` - 订单项目表 (关联订单和产品)
+  - `product_reviews` - 产品评论表
 
 ### 2. `02-web-schema.sql` - Web业务系统 🌐
 
 - **数据库名**: `ecommerce_source_web`
+- **数据时间范围**: 2024-01-15 到 2024-02-10
 - **特点**:
   - `orders` 表主键: `order_no` (VARCHAR 类型)
   - `order_items` 表使用 `order_no` 字段 ⭐ 关键区别
-  - `order_date`: 逻辑上为 MM/dd/yyyy 格式
-  - 包含 5 个用户、10 个产品、10 个订单及示例数据
+  - `order_date`: yyyy-MM-dd 格式
+  - 包含 **10 个用户**、**10 个产品**、**10 个订单** 的真实数据
+  - 所有数据通过 mysqldump 从运行容器提取
 - **表结构**:
-  - users (用户表)
-  - products (产品表)
-  - orders (订单表 - order_no VARCHAR)
-  - order_items (订单项目表 - 使用order_no)
-  - product_reviews (产品评论表)
+  - `users` - 用户表 (10 条记录)
+  - `products` - 产品表 (10 条记录)
+  - `orders` - 订单表 (order_no VARCHAR 类型，10 条记录)
+  - `order_items` - 订单项目表 (使用 order_no, 关联订单和产品)
+  - `product_reviews` - 产品评论表
 
 ### 3. `03-warehouse-schema.sql` - 数据仓库 📊
 
 - **数据库名**: `ecommerce_warehouse`
-- **目的**: 统一存储ETL处理结果，支持多维分析
+- **目的**: 数据库存储统一处理后的 Star Schema，支持 OLAP 分析
+- **架构**: Star Schema with Dimension & Fact Tables
+- **数据汇总**:
+  - 合并两个源系统 (App + Web) 的 20 条订单
+  - 订单日期范围: 2024-01-15 到 2024-02-10
+  - 统一数据源追踪 (source 字段: 'APP' 或 'WEB')
 - **表结构**:
-  - `fact_sales_by_category_time`: 销量事实表 (按类别和时间)
-  - `fact_top_rated_products`: 评分事实表 (按商品和时间)
-  - `sync_log`: 同步日志表 (监控ETL过程)
-- **额外功能**:
-  - 2 个视图 (v_sales_ranking, v_product_ratings)
-  - 3 个存储过程 (数据聚合和查询)
+  - `dim_products` - 产品维度表 (20 条: 10 APP + 10 WEB)
+  - `dim_orders` - 订单维度表 (20 条)
+  - `dim_order_items` - 订单项目维度表
+  - `fact_sales_by_product_time` - 销售事实表 (按产品和时间聚合)
 
 ## 🚀 快速开始
 
@@ -98,11 +106,14 @@ Dashboard展示
 
 ## 📊 初始数据统计
 
-| 数据库    | 用户 | 产品 | 订单      | 评论 | 订单项 |
-| --------- | ---- | ---- | --------- | ---- | ------ |
-| App       | 5    | 10   | 10        | 10   | 22     |
-| Web       | 5    | 10   | 10        | 10   | 25     |
-| Warehouse | -    | -    | 20 (聚合) | -    | -      |
+| 指标     | App                     | Web   | Warehouse | 合计 |
+| -------- | ----------------------- | ----- | --------- | ---- |
+| 用户数   | 10                      | 10    | -         | 20   |
+| 产品数   | 10                      | 10    | 20 (合并) | -    |
+| 订单数   | 10                      | 10    | 20 (合并) | -    |
+| 订单项数 | ~30                     | ~30   | -         | ~60  |
+| 日期范围 | 2024-01-15 - 2024-02-10 | 同左  | 同左      | -    |
+| 总销售额 | ~$10k                   | ~$10k | ~$20.5k   | -    |
 
 ## 🔍 验证脚本执行
 
@@ -111,34 +122,52 @@ Dashboard展示
 ```sql
 -- 检查App数据库
 USE ecommerce_source_app;
-SELECT COUNT(*) FROM orders;  -- 应该是 10
-SELECT SUM(total_amount) FROM orders;  -- 应该是 ~8859.89
+SELECT COUNT(*) as order_count FROM orders;  -- 应该是 10
+SELECT SUM(total_amount) as total_sales FROM orders;  -- 验证总金额
 
 -- 检查Web数据库
 USE ecommerce_source_web;
-SELECT COUNT(*) FROM orders;  -- 应该是 10
-SELECT COUNT(*) FROM order_items WHERE order_no = 'WEB-2024-001';  -- 应该是 3
+SELECT COUNT(*) as order_count FROM orders;  -- 应该是 10
+SELECT COUNT(DISTINCT order_no) as unique_orders FROM order_items;  -- 验证订单项
 
 -- 检查仓库数据库
 USE ecommerce_warehouse;
-SELECT COUNT(*) FROM fact_sales_by_category_time;  -- 应该是 ~15
-SELECT COUNT(*) FROM fact_top_rated_products;  -- 应该是 ~9
-SELECT * FROM sync_log;  -- 初始为空，在ETL运行后会有数据
+SELECT COUNT(*) as dim_orders FROM dim_orders;  -- 应该是 20
+SELECT COUNT(*) as dim_products FROM dim_products;  -- 应该是 20
+SELECT COUNT(*) as fact_sales FROM fact_sales_by_product_time;  -- 聚合的事实表数据
+SELECT * FROM fact_sales_by_product_time LIMIT 5;  -- 查看前5条数据
 ```
 
 ## 🛠️ 常见问题
 
-### Q: 为什么要创建异构的 order_id 和 order_no？
+### Q: 为什么 App 使用 order_id，而 Web 使用 order_no？
 
-A: 这是真实的数据集成场景。App和Web是不同的业务系统，恰好使用了不同的主键设计。ETL需要处理这种异构性。
+A: 这反映真实的多源系统集成场景。App 使用 INT 自增主键，Web 使用手动控制的 VARCHAR 编码 (如 "WEB-2024-001")。ETL 必须处理这种异构性.
 
-### Q: order_items 中的 order_no 关键吗？
+### Q: dim_orders 和 dim_order_items 中的数据如何同步？
 
-A: 非常关键！这是Web系统的独特设计。ETL过程必须正确处理这个字段的映射，这是本项目的一个重要业务规则。
+A: 这三个 SQL 文件是从运行中的容器通过 mysqldump 导出的。当 docker-compose up 运行时，这些文件会自动重建数据库和初始化数据。
 
 ### Q: 可以修改示例数据吗？
 
-A: 完全可以！根据你的演示需求修改 INSERT 语句中的数据即可。
+A: 完全可以！修改 INSERT 语句中的数据即可。建议保持订单日期在 2024-01-15 到 2024-02-10 范围内以匹配现有数据分布。
+
+### Q：为什么 fact_sales_by_product_time 是由两个源数据库的订单组成的？
+
+A: 这是数据仓库的核心功能——统一多个源系统的数据进行分析。Warehouse 合并了 App 和 Web 的订单数据，并标记了 source 字段 ('APP' 或 'WEB')。
+
+## 📜 文件维护说明
+
+- **自动生成**: 这些 SQL 文件是从运行的数据库容器通过 `mysqldump` 导出生成的
+- **保存位置**: `sql/` 目录 (此目录)
+- **版本控制**: 提交到 git，作为项目的初始化基础
+- **更新方法**: 修改数据库内容后，重新运行 `mysqldump` 导出即可更新这些文件
+
+## 🔗 相关文件
+
+- `docker-compose.yml` - 定义了三个数据库容器的启动配置
+- `backend/` - Java 应用程序代码，定义了数据库映射关系
+- `frontend/` - Vue.js 前端应用
 
 ### Q: warehouse 数据怎么来的？
 
