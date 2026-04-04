@@ -291,11 +291,11 @@ public class AnalyticsController {
             ObjectMapper mapper = new ObjectMapper();
             log.info(">>> Testing Jackson deserialization");
             log.info(">>> Raw JSON: {}", jsonString);
-            
+
             OrderEvent event = mapper.readValue(jsonString, OrderEvent.class);
-            log.info(">>> After deserialization: orderId={}, eventType={}, source={}", 
+            log.info(">>> After deserialization: orderId={}, eventType={}, source={}",
                     event.getOrderId(), event.getEventType(), event.getSource());
-            
+
             return ResponseEntity.ok(Map.of(
                     "status", "success",
                     "orderId", event.getOrderId(),
