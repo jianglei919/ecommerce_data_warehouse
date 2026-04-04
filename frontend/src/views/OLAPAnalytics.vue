@@ -201,6 +201,9 @@
               </a-button>
             </a-col>
           </a-row>
+          <!-- Chart -->
+          <div ref="pivotChartRef" style="width: 100%; height: 400px; margin-bottom: 30px" v-if="!pivotLoading" />
+          <!-- Table (optional detailed view) -->
           <div style="overflow-x: auto">
             <a-table
               :columns="pivotColumns"
@@ -235,7 +238,7 @@ const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 
 const rollupColumns = [
   { title: 'Category', dataIndex: 'category', key: 'category' },
   { title: 'Year', dataIndex: 'year', key: 'year' },
-  { title: 'Month', dataIndex: 'month', key: 'month', render: (val: number) => monthNames[val] || `Month ${val}` },
+  { title: 'Month', dataIndex: 'month', key: 'month', render: (_, record: any) => monthNames[record.month] || `Month ${record.month}` },
   { title: 'Quantity', dataIndex: 'monthly_qty', key: 'qty' },
   { title: 'Sales', dataIndex: 'monthly_sales', key: 'sales', render: (val:number) => `$${val.toFixed(2)}` },
 ]
@@ -275,16 +278,17 @@ const diceLoading = ref(false)
 const diceColumns = [
   { title: 'Category', dataIndex: 'category', key: 'category' },
   { title: 'Year', dataIndex: 'year', key: 'year' },
-  { title: 'Month', dataIndex: 'month', key: 'month', render: (val: number) => monthNames[val] || `Month ${val}` },
+  { title: 'Month', dataIndex: 'month', key: 'month', render: (_: any, record: any) => monthNames[record.month] || `Month ${record.month}` },
   { title: 'Quantity', dataIndex: 'qty', key: 'qty' },
   { title: 'Sales', dataIndex: 'sales', key: 'sales', render: (val:number) => `$${val.toFixed(2)}` },
 ]
 
 // Pivot State
 const pivotYear = ref<number>(2024)
-const pivotData = ref([])
+const pivotChartRef = ref()
+const pivotData = ref<any[]>([])
 const pivotLoading = ref(false)
-let pivotColumns = ref([])
+const pivotColumns = ref<any[]>([])
 
 // Active Tab
 const activeTab = ref('rollup')
@@ -404,6 +408,9 @@ const fetchPivotData = async () => {
       { title: 'Apr', dataIndex: 'Apr_Sales', key: 'apr', render: (val:number) => `$${val.toFixed(2)}` },
       { title: 'Total', dataIndex: 'Total_Sales', key: 'total', render: (val:number) => `$${val.toFixed(2)}` },
     ]
+
+    // Update chart
+    await updatePivotChart()
   } catch (error) {
     message.error('Failed to load pivot data')
     console.error(error)
@@ -429,6 +436,34 @@ const updateSliceChart = async () => {
   })
 }
 
+const updatePivotChart = async () => {
+  await nextTick()
+  
+  if (!pivotChartRef.value || pivotData.value.length === 0) return
+  
+  const chart = echarts.init(pivotChartRef.value)
+  
+  // Extract months and categories
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const categories = pivotData.value.map((item: any) => item.category)
+  
+  // Build series for each month
+  const series = months.map(month => ({
+    name: month,
+    data: pivotData.value.map((item: any) => item[`${month}_Sales`] || 0),
+    type: 'bar',
+  }))
+  
+  chart.setOption({
+    title: { text: 'Monthly Sales by Category' },
+    tooltip: { trigger: 'axis' },
+    legend: { data: months },
+    xAxis: { type: 'category', data: categories },
+    yAxis: { type: 'value', name: 'Sales ($)' },
+    series: series,
+  })
+}
+
 // Load data on mount
 onMounted(() => {
   fetchRollupData()
@@ -443,6 +478,10 @@ watch(activeTab, async (newVal) => {
   if (newVal === 'slice') {
     await nextTick()
     await updateSliceChart()
+  }
+  if (newVal === 'pivot') {
+    await nextTick()
+    await updatePivotChart()
   }
 })
 </script>
