@@ -145,6 +145,11 @@ public class ETLService {
      * 用于审计和监控 ETL 过程
      */
     private void recordSyncLog(Connection conn, OrderEvent event, String status, String errorMessage) throws Exception {
+        if (event == null || event.getEventId() == null) {
+            log.warn("Cannot record sync log: event or event_id is null");
+            return;
+        }
+
         String logSql = """
                 INSERT INTO sync_log
                 (event_id, event_type, source, order_id, status, error_message, sync_time)
