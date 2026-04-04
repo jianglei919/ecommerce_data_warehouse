@@ -162,7 +162,7 @@ const loadSalesData = async () => {
     } else {
       // 清空表格和图表
       salesData.value = []
-      initChart()
+      initChart([], [], [])
       message.info(`No data available for year ${year}`)
     }
   } catch (error) {
@@ -172,9 +172,9 @@ const loadSalesData = async () => {
 }
 
 onMounted(() => {
-  initChart()
-  // 页面加载时只初始化图表，不自动加载数据
-  // 等待用户选择日期范围后点击"Load Data"按钮
+  initChart([], [], [])
+  // 页面加载时只初始化空图表，不显示数据
+  // 等待用户选择年份并点击"Load Data"按钮
 })
 </script>
 
