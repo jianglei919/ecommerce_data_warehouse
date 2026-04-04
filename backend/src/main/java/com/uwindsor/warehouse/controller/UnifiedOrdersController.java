@@ -319,4 +319,279 @@ public class UnifiedOrdersController {
                     "message", e.getMessage()));
         }
     }
+
+    // =====================================================
+    // OLAP 分析端点 (根据PDF Section 5设计)
+    // =====================================================
+
+    /**
+     * OLAP操作1: Rollup - 按类别和时间聚合销售 (按月汇总)
+     */
+    @GetMapping("/analytics/rollup")
+    public ResponseEntity<?> getOlapRollup(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Integer year) {
+
+        try {
+            String sql = """
+                    SELECT d.category, f.year, f.month,
+                           SUM(f.total_quantity) AS monthly_qty,
+                           SUM(f.total_sales_amount) AS monthly_sales
+                    FROM fact_sales_by_product_time f
+                    JOIN dim_products d ON f.product_key = d.product_key
+                    WHERE 1=1
+                    """;
+
+            List<Object> params = new ArrayList<>();
+
+            if (category != null && !category.isEmpty()) {
+                sql += " AND d.category = ?";
+                params.add(category);
+            }
+            if (year != null) {
+                sql += " AND f.year = ?";
+                params.add(year);
+            }
+
+            sql += " GROUP BY d.category, f.year, f.month ORDER BY f.year, f.month, d.category";
+
+            List<Map<String, Object>> result = jdbcTemplate.queryForList(sql, params.toArray());
+
+            log.info("Fetched OLAP Rollup data: {} rows", result.size());
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "operation", "Rollup",
+                    "data", result,
+                    "count", result.size()));
+
+        } catch (Exception e) {
+            log.error("Error fetching OLAP Rollup: {}", e.getMessage());
+            return ResponseEntity.status(500).body(Map.of(
+                    "status", "error",
+                    "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * OLAP操作2: Drilldown - 按商品详细分析某类别的日度销售
+     */
+    @GetMapping("/analytics/drilldown")
+    public ResponseEntity<?> getOlapDrilldown(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month) {
+
+        try {
+            String sql = """
+                    SELECT d.product_id, d.product_name, d.category, f.year, f.month, f.day,
+                           f.total_quantity, f.total_sales_amount
+                    FROM fact_sales_by_product_time f
+                    JOIN dim_products d ON f.product_key = d.product_key
+                    WHERE 1=1
+                    """;
+
+            List<Object> params = new ArrayList<>();
+
+            if (category != null && !category.isEmpty()) {
+                sql += " AND d.category = ?";
+                params.add(category);
+            }
+            if (year != null) {
+                sql += " AND f.year = ?";
+                params.add(year);
+            }
+            if (month != null) {
+                sql += " AND f.month = ?";
+                params.add(month);
+            }
+
+            sql += " ORDER BY f.year, f.month, f.day, d.product_name";
+
+            List<Map<String, Object>> result = jdbcTemplate.queryForList(sql, params.toArray());
+
+            log.info("Fetched OLAP Drilldown data: {} rows", result.size());
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "operation", "Drilldown",
+                    "data", result,
+                    "count", result.size()));
+
+        } catch (Exception e) {
+            log.error("Error fetching OLAP Drilldown: {}", e.getMessage());
+            return ResponseEntity.status(500).body(Map.of(
+                    "status", "error",
+                    "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * OLAP操作3: Slice - 单个维度的切片分析 (按类别筛选时间趋势)
+     */
+    @GetMapping("/analytics/slice")
+    public ResponseEntity<?> getOlapSlice(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Integer year) {
+
+        try {
+            String sql = """
+                    SELECT f.year, f.month, f.day, f.total_quantity, f.total_sales_amount
+                    FROM fact_sales_by_product_time f
+                    JOIN dim_products d ON f.product_key = d.product_key
+                    WHERE 1=1
+                    """;
+
+            List<Object> params = new ArrayList<>();
+
+            if (category != null && !category.isEmpty()) {
+                sql += " AND d.category = ?";
+                params.add(category);
+            }
+            if (year != null) {
+                sql += " AND f.year = ?";
+                params.add(year);
+            }
+
+            sql += " ORDER BY f.year, f.month, f.day";
+
+            List<Map<String, Object>> result = jdbcTemplate.queryForList(sql, params.toArray());
+
+            log.info("Fetched OLAP Slice data: {} rows", result.size());
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "operation", "Slice",
+                    "data", result,
+                    "count", result.size()));
+
+        } catch (Exception e) {
+            log.error("Error fetching OLAP Slice: {}", e.getMessage());
+            return ResponseEntity.status(500).body(Map.of(
+                    "status", "error",
+                    "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * OLAP操作4: Dice - 多维度的多值筛选分析
+     */
+    @GetMapping("/analytics/dice")
+    public ResponseEntity<?> getOlapDice(
+            @RequestParam(required = false) String categories,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) String months) {
+
+        try {
+            String sql = """
+                    SELECT d.category, f.year, f.month,
+                           SUM(f.total_quantity) AS qty,
+                           SUM(f.total_sales_amount) AS sales
+                    FROM fact_sales_by_product_time f
+                    JOIN dim_products d ON f.product_key = d.product_key
+                    WHERE 1=1
+                    """;
+
+            List<Object> params = new ArrayList<>();
+
+            // Parse categories (comma-separated)
+            if (categories != null && !categories.isEmpty()) {
+                String[] categoryArray = categories.split(",");
+                List<String> categoryList = new ArrayList<>();
+                for (String cat : categoryArray) {
+                    categoryList.add(cat.trim());
+                }
+                String placeholders = String.join(",", Collections.nCopies(categoryList.size(), "?"));
+                sql += " AND d.category IN (" + placeholders + ")";
+                params.addAll(categoryList);
+            }
+
+            if (year != null) {
+                sql += " AND f.year = ?";
+                params.add(year);
+            }
+
+            // Parse months (comma-separated)
+            if (months != null && !months.isEmpty()) {
+                String[] monthArray = months.split(",");
+                List<Integer> monthList = new ArrayList<>();
+                for (String m : monthArray) {
+                    monthList.add(Integer.parseInt(m.trim()));
+                }
+                String placeholders = String.join(",", Collections.nCopies(monthList.size(), "?"));
+                sql += " AND f.month IN (" + placeholders + ")";
+                params.addAll(monthList);
+            }
+
+            sql += " GROUP BY d.category, f.year, f.month ORDER BY f.month, d.category";
+
+            List<Map<String, Object>> result = jdbcTemplate.queryForList(sql, params.toArray());
+
+            log.info("Fetched OLAP Dice data: {} rows", result.size());
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "operation", "Dice",
+                    "data", result,
+                    "count", result.size()));
+
+        } catch (Exception e) {
+            log.error("Error fetching OLAP Dice: {}", e.getMessage());
+            return ResponseEntity.status(500).body(Map.of(
+                    "status", "error",
+                    "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * OLAP操作5: Pivot - 交叉维度分析 (以行和列展现多维度数据)
+     */
+    @GetMapping("/analytics/pivot")
+    public ResponseEntity<?> getOlapPivot(
+            @RequestParam(required = false) Integer year) {
+
+        try {
+            String sql = """
+                    SELECT d.category,
+                           SUM(CASE WHEN f.month = 1 THEN f.total_sales_amount ELSE 0 END) AS Jan_Sales,
+                           SUM(CASE WHEN f.month = 2 THEN f.total_sales_amount ELSE 0 END) AS Feb_Sales,
+                           SUM(CASE WHEN f.month = 3 THEN f.total_sales_amount ELSE 0 END) AS Mar_Sales,
+                           SUM(CASE WHEN f.month = 4 THEN f.total_sales_amount ELSE 0 END) AS Apr_Sales,
+                           SUM(CASE WHEN f.month = 5 THEN f.total_sales_amount ELSE 0 END) AS May_Sales,
+                           SUM(CASE WHEN f.month = 6 THEN f.total_sales_amount ELSE 0 END) AS Jun_Sales,
+                           SUM(CASE WHEN f.month = 7 THEN f.total_sales_amount ELSE 0 END) AS Jul_Sales,
+                           SUM(CASE WHEN f.month = 8 THEN f.total_sales_amount ELSE 0 END) AS Aug_Sales,
+                           SUM(CASE WHEN f.month = 9 THEN f.total_sales_amount ELSE 0 END) AS Sep_Sales,
+                           SUM(CASE WHEN f.month = 10 THEN f.total_sales_amount ELSE 0 END) AS Oct_Sales,
+                           SUM(CASE WHEN f.month = 11 THEN f.total_sales_amount ELSE 0 END) AS Nov_Sales,
+                           SUM(CASE WHEN f.month = 12 THEN f.total_sales_amount ELSE 0 END) AS Dec_Sales,
+                           SUM(f.total_sales_amount) AS Total_Sales
+                    FROM fact_sales_by_product_time f
+                    JOIN dim_products d ON f.product_key = d.product_key
+                    WHERE 1=1
+                    """;
+
+            List<Object> params = new ArrayList<>();
+
+            if (year != null) {
+                sql += " AND f.year = ?";
+                params.add(year);
+            } else {
+                sql += " AND f.year = YEAR(CURDATE())";
+            }
+
+            sql += " GROUP BY d.category ORDER BY Total_Sales DESC";
+
+            List<Map<String, Object>> result = jdbcTemplate.queryForList(sql, params.toArray());
+
+            log.info("Fetched OLAP Pivot data: {} rows", result.size());
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "operation", "Pivot",
+                    "data", result,
+                    "count", result.size()));
+
+        } catch (Exception e) {
+            log.error("Error fetching OLAP Pivot: {}", e.getMessage());
+            return ResponseEntity.status(500).body(Map.of(
+                    "status", "error",
+                    "message", e.getMessage()));
+        }
+    }
 }
