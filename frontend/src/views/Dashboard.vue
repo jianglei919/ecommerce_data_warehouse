@@ -156,10 +156,8 @@ const initSalesChart = () => {
 // 从API加载销售数据
 const loadSalesData = async () => {
   try {
-    const endDate = dayjs().format('YYYY-MM-DD')
-    const startDate = dayjs().subtract(6, 'day').format('YYYY-MM-DD')
-    
-    const response = await analyticsApi.getSalesByDate(startDate, endDate)
+    // 不指定日期范围时返回所有数据
+    const response = await analyticsApi.getSalesByDate()
     console.log('Sales data response:', response)
     
     if (response && response.data && response.data.length > 0 && salesChart) {
