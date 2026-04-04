@@ -144,21 +144,36 @@ public class AnalyticsController {
     }
 
     /**
-     * 获取热门商品排名
+     * 获取热门商品排名 - 支持按源系统筛选 (APP/WEB/所有)
+     * 
+     * @param source 源系统 (可选: APP, WEB, 或留空表示所有)
+     * @param limit  返回记录数
      */
     @GetMapping("/products/top-rated")
     public ResponseEntity<?> getTopRatedProducts(
+            @RequestParam(required = false) String source,
             @RequestParam(defaultValue = "10") int limit) {
 
         try {
-            String sql = "SELECT dp.product_id, dp.product_name, dp.category, dp.brand, " +
+            // 构建WHERE条件
+            String whereClause = "";
+            if (source != null && !source.isEmpty() && !source.equals("ALL")) {
+                whereClause = " AND uo.source = '" + source + "'";
+            }
+
+            // 通过unified_orders关联获取source，确保product_id + source的正确匹配
+            String sql = "SELECT dp.source, dp.product_id, dp.product_name, dp.category, dp.brand, " +
                     "COUNT(DISTINCT uoi.unified_order_id) as sales_count, " +
                     "SUM(uoi.quantity) as total_quantity, " +
                     "SUM(uoi.subtotal) as total_sales_amount, " +
                     "ROUND(SUM(uoi.subtotal) / SUM(uoi.quantity), 2) as avg_price " +
                     "FROM dim_products dp " +
-                    "LEFT JOIN unified_order_items uoi ON dp.product_id = uoi.product_id " +
-                    "GROUP BY dp.product_id, dp.product_name, dp.category, dp.brand " +
+                    "LEFT JOIN unified_order_items uoi ON uoi.product_id = dp.product_id " +
+                    "LEFT JOIN unified_orders uo ON uoi.unified_order_id = uo.unified_order_id " +
+                    "WHERE 1=1 " +
+                    "AND dp.source = IFNULL(uo.source, dp.source) " +
+                    whereClause +
+                    " GROUP BY dp.product_key, dp.source, dp.product_id, dp.product_name, dp.category, dp.brand " +
                     "ORDER BY total_sales_amount DESC, total_quantity DESC " +
                     "LIMIT " + limit;
 
@@ -169,7 +184,8 @@ public class AnalyticsController {
             List<Map<String, Object>> productsList = new ArrayList<>();
             while (rs.next()) {
                 Map<String, Object> row = new HashMap<>();
-                row.put("productId", rs.getString("product_id"));
+                row.put("source", rs.getString("source"));
+                row.put("productId", rs.getInt("product_id"));
                 row.put("name", rs.getString("product_name"));
                 row.put("category", rs.getString("category"));
                 row.put("brand", rs.getString("brand"));
@@ -189,10 +205,11 @@ public class AnalyticsController {
             Map<String, Object> result = new HashMap<>();
             result.put("status", "success");
             result.put("data", productsList);
+            result.put("source", source != null ? source : "ALL");
             result.put("limit", limit);
             result.put("timestamp", LocalDateTime.now());
 
-            log.info("Fetched {} top products", productsList.size());
+            log.info("Fetched {} top products (source: {})", productsList.size(), source != null ? source : "ALL");
             return ResponseEntity.ok(result);
 
         } catch (Exception e) {

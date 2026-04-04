@@ -53,17 +53,19 @@ CREATE TABLE
 -- 商品维度表 (Surrogate Key: product_key)
 CREATE TABLE
     dim_products (
-        product_key INT PRIMARY KEY AUTO_INCREMENT COMMENT '维度代理键 (Business Key: product_id)',
+        product_key INT PRIMARY KEY AUTO_INCREMENT COMMENT '维度代理键 (Business Key: source+product_id)',
+        source VARCHAR(10) NOT NULL COMMENT 'APP 或 WEB 业务源',
         product_id INT NOT NULL COMMENT '业务键 - 商品ID',
         product_name VARCHAR(200) NOT NULL COMMENT '商品名称',
         category VARCHAR(50) NOT NULL COMMENT '商品类别',
         brand VARCHAR(50) COMMENT '品牌',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uk_product_id (product_id),
+        UNIQUE KEY uk_source_product (source, product_id),
+        KEY idx_source (source),
         KEY idx_category (category),
         KEY idx_brand (brand)
-    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '商品维度表 (Surrogate Key)';
+    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '商品维度表 (Surrogate Key: source+product_id)';
 
 -- 销售事实表 (按商品+时间维度的聚合)
 -- OLAP查询通过这个表与维度表JOIN获得多维分析结果
@@ -88,35 +90,104 @@ CREATE TABLE
 -- =====================================================
 -- 样本数据初始化
 -- =====================================================
--- 插入维度表数据 (20种商品)
+-- 插入维度表数据 (20种商品: 10个App + 10个Web)
 INSERT INTO
-    dim_products (product_id, product_name, category, brand)
+    dim_products (source, product_id, product_name, category, brand)
 VALUES
-    (1, 'iPhone 15 Pro', 'Electronics', 'Apple'),
-    (2, 'MacBook Pro M3', 'Computers', 'Apple'),
-    (3, 'Samsung Galaxy S24', 'Electronics', 'Samsung'),
-    (4, 'iPad Air', 'Electronics', 'Apple'),
-    (5, 'Dell XPS 15', 'Computers', 'Dell'),
-    (6, 'Wireless Mouse', 'Accessories', 'Logitech'),
-    (7, 'USB-C Cable', 'Accessories', 'Generic'),
-    (8, 'AirPods Pro Max', 'Electronics', 'Apple'),
-    (9, 'Apple Watch Ultra', 'Electronics', 'Apple'),
-    (10, 'Phone Charger', 'Accessories', 'Generic'),
-    (11, 'Screen Protector', 'Accessories', 'Generic'),
-    (12, 'Pixel 8 Pro', 'Electronics', 'Google'),
-    (13, 'Sony WH-1000XM5', 'Electronics', 'Sony'),
-    (14, 'Anker Power Bank', 'Electronics', 'Anker'),
-    (15, 'Laptop Stand', 'Accessories', 'Generic'),
-    (16, 'Desk Lamp', 'Accessories', 'Generic'),
+    -- App系统产品 (source=APP, product_id=1-10)
+    ('APP', 1, 'iPhone 15 Pro', 'Electronics', 'Apple'),
     (
-        17,
-        'Samsung Galaxy Buds',
+        'APP',
+        2,
+        'MacBook Pro M3',
+        'Electronics',
+        'Apple'
+    ),
+    ('APP', 3, 'AirPods Pro', 'Audio', 'Apple'),
+    (
+        'APP',
+        4,
+        'Google Pixel 8',
+        'Electronics',
+        'Google'
+    ),
+    (
+        'APP',
+        5,
+        'Google Pixel Watch',
+        'Wearables',
+        'Google'
+    ),
+    ('APP', 6, 'USB-C Cable', 'Accessories', 'Generic'),
+    (
+        'APP',
+        7,
+        'Wireless Charger',
+        'Accessories',
+        'Generic'
+    ),
+    ('APP', 8, 'Phone Case', 'Accessories', 'Generic'),
+    (
+        'APP',
+        9,
+        'Screen Protector',
+        'Accessories',
+        'Generic'
+    ),
+    (
+        'APP',
+        10,
+        'Laptop Stand',
+        'Accessories',
+        'Generic'
+    ),
+    -- Web系统产品 (source=WEB, product_id=1-10)
+    (
+        'WEB',
+        1,
+        'Samsung Galaxy S24',
         'Electronics',
         'Samsung'
     ),
-    (18, 'Case for Phone', 'Accessories', 'Generic'),
-    (19, 'Office Chair', 'Furniture', 'IKEA'),
-    (20, 'Monitor', 'Electronics', 'LG');
+    (
+        'WEB',
+        2,
+        'Samsung Galaxy Tab S9',
+        'Electronics',
+        'Samsung'
+    ),
+    (
+        'WEB',
+        3,
+        'Samsung Galaxy Buds Pro',
+        'Audio',
+        'Samsung'
+    ),
+    (
+        'WEB',
+        4,
+        'Google Pixel 8',
+        'Electronics',
+        'Google'
+    ),
+    (
+        'WEB',
+        5,
+        'Google Pixel Watch',
+        'Wearables',
+        'Google'
+    ),
+    ('WEB', 6, 'USB Charger', 'Accessories', 'Generic'),
+    ('WEB', 7, 'Case Cover', 'Accessories', 'Generic'),
+    ('WEB', 8, 'Screen Film', 'Accessories', 'Generic'),
+    ('WEB', 9, 'Phone Mount', 'Accessories', 'Generic'),
+    (
+        'WEB',
+        10,
+        'Tempered Glass',
+        'Accessories',
+        'Generic'
+    );
 
 -- 插入聚合订单数据
 INSERT INTO

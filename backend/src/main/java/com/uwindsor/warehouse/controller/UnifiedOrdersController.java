@@ -330,11 +330,12 @@ public class UnifiedOrdersController {
     @GetMapping("/analytics/rollup")
     public ResponseEntity<?> getOlapRollup(
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) String source,
             @RequestParam(required = false) Integer year) {
 
         try {
             String sql = """
-                    SELECT d.category, f.year, f.month,
+                    SELECT d.source, d.category, f.year, f.month,
                            SUM(f.total_quantity) AS monthly_qty,
                            SUM(f.total_sales_amount) AS monthly_sales
                     FROM fact_sales_by_product_time f
@@ -344,6 +345,10 @@ public class UnifiedOrdersController {
 
             List<Object> params = new ArrayList<>();
 
+            if (source != null && !source.isEmpty()) {
+                sql += " AND d.source = ?";
+                params.add(source);
+            }
             if (category != null && !category.isEmpty()) {
                 sql += " AND d.category = ?";
                 params.add(category);
@@ -353,7 +358,7 @@ public class UnifiedOrdersController {
                 params.add(year);
             }
 
-            sql += " GROUP BY d.category, f.year, f.month ORDER BY f.year, f.month, d.category";
+            sql += " GROUP BY d.source, d.category, f.year, f.month ORDER BY d.source, f.year, f.month, d.category";
 
             List<Map<String, Object>> result = jdbcTemplate.queryForList(sql, params.toArray());
 
@@ -378,12 +383,13 @@ public class UnifiedOrdersController {
     @GetMapping("/analytics/drilldown")
     public ResponseEntity<?> getOlapDrilldown(
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) String source,
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month) {
 
         try {
             String sql = """
-                    SELECT d.product_id, d.product_name, d.category, f.year, f.month, f.day,
+                    SELECT d.source, d.product_id, d.product_name, d.category, f.year, f.month, f.day,
                            f.total_quantity, f.total_sales_amount
                     FROM fact_sales_by_product_time f
                     JOIN dim_products d ON f.product_key = d.product_key
@@ -392,6 +398,10 @@ public class UnifiedOrdersController {
 
             List<Object> params = new ArrayList<>();
 
+            if (source != null && !source.isEmpty()) {
+                sql += " AND d.source = ?";
+                params.add(source);
+            }
             if (category != null && !category.isEmpty()) {
                 sql += " AND d.category = ?";
                 params.add(category);
@@ -405,7 +415,7 @@ public class UnifiedOrdersController {
                 params.add(month);
             }
 
-            sql += " ORDER BY f.year, f.month, f.day, d.product_name";
+            sql += " ORDER BY d.source, f.year, f.month, f.day, d.product_name";
 
             List<Map<String, Object>> result = jdbcTemplate.queryForList(sql, params.toArray());
 
@@ -430,11 +440,12 @@ public class UnifiedOrdersController {
     @GetMapping("/analytics/slice")
     public ResponseEntity<?> getOlapSlice(
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) String source,
             @RequestParam(required = false) Integer year) {
 
         try {
             String sql = """
-                    SELECT f.year, f.month, f.day, f.total_quantity, f.total_sales_amount
+                    SELECT d.source, f.year, f.month, f.day, f.total_quantity, f.total_sales_amount
                     FROM fact_sales_by_product_time f
                     JOIN dim_products d ON f.product_key = d.product_key
                     WHERE 1=1
@@ -442,6 +453,10 @@ public class UnifiedOrdersController {
 
             List<Object> params = new ArrayList<>();
 
+            if (source != null && !source.isEmpty()) {
+                sql += " AND d.source = ?";
+                params.add(source);
+            }
             if (category != null && !category.isEmpty()) {
                 sql += " AND d.category = ?";
                 params.add(category);
@@ -451,7 +466,7 @@ public class UnifiedOrdersController {
                 params.add(year);
             }
 
-            sql += " ORDER BY f.year, f.month, f.day";
+            sql += " ORDER BY d.source, f.year, f.month, f.day";
 
             List<Map<String, Object>> result = jdbcTemplate.queryForList(sql, params.toArray());
 
@@ -476,12 +491,13 @@ public class UnifiedOrdersController {
     @GetMapping("/analytics/dice")
     public ResponseEntity<?> getOlapDice(
             @RequestParam(required = false) String categories,
+            @RequestParam(required = false) String source,
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) String months) {
 
         try {
             String sql = """
-                    SELECT d.category, f.year, f.month,
+                    SELECT d.source, d.category, f.year, f.month,
                            SUM(f.total_quantity) AS qty,
                            SUM(f.total_sales_amount) AS sales
                     FROM fact_sales_by_product_time f
@@ -490,6 +506,11 @@ public class UnifiedOrdersController {
                     """;
 
             List<Object> params = new ArrayList<>();
+
+            if (source != null && !source.isEmpty()) {
+                sql += " AND d.source = ?";
+                params.add(source);
+            }
 
             // Parse categories (comma-separated)
             if (categories != null && !categories.isEmpty()) {
@@ -520,7 +541,7 @@ public class UnifiedOrdersController {
                 params.addAll(monthList);
             }
 
-            sql += " GROUP BY d.category, f.year, f.month ORDER BY f.month, d.category";
+            sql += " GROUP BY d.source, d.category, f.year, f.month ORDER BY d.source, f.month, d.category";
 
             List<Map<String, Object>> result = jdbcTemplate.queryForList(sql, params.toArray());
 
