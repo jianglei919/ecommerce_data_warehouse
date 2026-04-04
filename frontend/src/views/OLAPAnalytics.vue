@@ -238,7 +238,7 @@ const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 
 const rollupColumns = [
   { title: 'Category', dataIndex: 'category', key: 'category' },
   { title: 'Year', dataIndex: 'year', key: 'year' },
-  { title: 'Month', dataIndex: 'month', key: 'month', render: (text: number) => monthNames[text] || `Month ${text}` },
+  { title: 'Month', dataIndex: 'monthName', key: 'month' },
   { title: 'Quantity', dataIndex: 'monthly_qty', key: 'qty' },
   { title: 'Sales', dataIndex: 'monthly_sales', key: 'sales', render: (val:number) => `$${val.toFixed(2)}` },
 ]
@@ -278,7 +278,7 @@ const diceLoading = ref(false)
 const diceColumns = [
   { title: 'Category', dataIndex: 'category', key: 'category' },
   { title: 'Year', dataIndex: 'year', key: 'year' },
-  { title: 'Month', dataIndex: 'month', key: 'month', render: (text: number) => monthNames[text] || `Month ${text}` },
+  { title: 'Month', dataIndex: 'monthName', key: 'month' },
   { title: 'Quantity', dataIndex: 'qty', key: 'qty' },
   { title: 'Sales', dataIndex: 'sales', key: 'sales', render: (val:number) => `$${val.toFixed(2)}` },
 ]
@@ -305,7 +305,11 @@ const fetchRollupData = async () => {
 
     const response = await fetch(url)
     const result = await response.json()
-    rollupData.value = result.data.map((item: any, idx: number) => ({ ...item, key: idx }))
+    rollupData.value = result.data.map((item: any, idx: number) => ({
+      ...item,
+      key: idx,
+      monthName: monthNames[item.month] || `Month ${item.month}`
+    }))
   } catch (error) {
     message.error('Failed to load rollup data')
     console.error(error)
@@ -378,7 +382,11 @@ const fetchDiceData = async () => {
 
     const response = await fetch(url)
     const result = await response.json()
-    diceData.value = result.data.map((item: any, idx: number) => ({ ...item, key: idx }))
+    diceData.value = result.data.map((item: any, idx: number) => ({
+      ...item,
+      key: idx,
+      monthName: monthNames[item.month] || `Month ${item.month}`
+    }))
   } catch (error) {
     message.error('Failed to load dice data')
     console.error(error)
