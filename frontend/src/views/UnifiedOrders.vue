@@ -1,54 +1,54 @@
 <template>
   <div class="unified-orders-container">
-    <h1>统一订单管理 (整合App+Web)</h1>
+    <h1>Unified Orders Management (App + Web)</h1>
     
-    <!-- 概览统计 -->
+    <!-- Overview Statistics -->
     <div class="overview-stats">
       <div class="stat-card">
         <div class="stat-value">{{ overview.totalOrders }}</div>
-        <div class="stat-label">总订单数</div>
+        <div class="stat-label">Total Orders</div>
       </div>
       <div class="stat-card app">
         <div class="stat-value">{{ overview.appOrders }}</div>
-        <div class="stat-label">App订单</div>
+        <div class="stat-label">App Orders</div>
       </div>
       <div class="stat-card web">
         <div class="stat-value">{{ overview.webOrders }}</div>
-        <div class="stat-label">Web订单</div>
+        <div class="stat-label">Web Orders</div>
       </div>
     </div>
 
-    <!-- 筛选条件 -->
+    <!-- Filters -->
     <div class="filters">
       <a-space>
         <a-select 
           v-model:value="filters.source" 
-          placeholder="选择数据源" 
+          placeholder="Select Source" 
           style="width: 150px"
           @change="handleFilterChange"
         >
-          <a-select-option value="">全部来源</a-select-option>
-          <a-select-option value="APP">App数据源</a-select-option>
-          <a-select-option value="WEB">Web数据源</a-select-option>
+          <a-select-option value="">All Sources</a-select-option>
+          <a-select-option value="APP">App Source</a-select-option>
+          <a-select-option value="WEB">Web Source</a-select-option>
         </a-select>
         
         <a-select 
           v-model:value="filters.status" 
-          placeholder="选择状态" 
+          placeholder="Select Status" 
           style="width: 150px"
           @change="handleFilterChange"
         >
-          <a-select-option value="">全部状态</a-select-option>
-          <a-select-option value="pending">待处理</a-select-option>
-          <a-select-option value="completed">已完成</a-select-option>
-          <a-select-option value="cancelled">已取消</a-select-option>
+          <a-select-option value="">All Status</a-select-option>
+          <a-select-option value="pending">Pending</a-select-option>
+          <a-select-option value="completed">Completed</a-select-option>
+          <a-select-option value="cancelled">Cancelled</a-select-option>
         </a-select>
 
-        <a-button type="primary" @click="loadOrders">刷新</a-button>
+        <a-button type="primary" @click="loadOrders">Refresh</a-button>
       </a-space>
     </div>
 
-    <!-- 订单表格 -->
+    <!-- Orders Table -->
     <div class="orders-table">
       <a-table
         :columns="columns"
@@ -77,53 +77,53 @@
             ¥{{ record.totalAmount.toFixed(2) }}
           </template>
           <template v-else-if="column.key === 'action'">
-            <a-button type="link" size="small" @click="showDetail(record)">查看详情</a-button>
+            <a-button type="link" size="small" @click="showDetail(record)">View Details</a-button>
           </template>
         </template>
       </a-table>
     </div>
 
-    <!-- 订单详情Modal -->
+    <!-- Order Details Modal -->
     <a-modal
       v-model:visible="detailModal.visible"
-      title="订单详情"
+      title="Order Details"
       width="800px"
       :footer="null"
     >
       <div v-if="detailModal.order" class="order-detail">
         <a-descriptions bordered :column="2" size="small">
-          <a-descriptions-item label="统一订单ID">
+          <a-descriptions-item label="Order ID">
             {{ detailModal.order.unifiedOrderId }}
           </a-descriptions-item>
-          <a-descriptions-item label="数据源">
+          <a-descriptions-item label="Data Source">
             <a-tag :color="detailModal.order.source === 'APP' ? 'blue' : 'green'">
               {{ detailModal.order.source }}
             </a-tag>
           </a-descriptions-item>
-          <a-descriptions-item label="订单号">
+          <a-descriptions-item label="Order No.">
             {{ detailModal.order.appOrderId || detailModal.order.webOrderNo }}
           </a-descriptions-item>
-          <a-descriptions-item label="订单日期">
+          <a-descriptions-item label="Order Date">
             {{ detailModal.order.orderDate }}
           </a-descriptions-item>
-          <a-descriptions-item label="用户ID">
+          <a-descriptions-item label="User ID">
             {{ detailModal.order.userId }}
           </a-descriptions-item>
-          <a-descriptions-item label="订单状态">
+          <a-descriptions-item label="Order Status">
             <a-tag :color="getStatusColor(detailModal.order.status)">
               {{ detailModal.order.status }}
             </a-tag>
           </a-descriptions-item>
-          <a-descriptions-item label="订单总额" :span="2">
+          <a-descriptions-item label="Total Amount" :span="2">
             <span style="color: #ff4d4f; font-weight: bold;">
               ¥{{ detailModal.order.totalAmount.toFixed(2) }}
             </span>
           </a-descriptions-item>
         </a-descriptions>
 
-        <!-- 订单项详情表 -->
+        <!-- Order Items Details -->
         <div style="margin-top: 20px;">
-          <h4>订单项详情</h4>
+          <h4>Order Items</h4>
           <a-table
             :columns="itemColumns"
             :data-source="detailModal.items"
@@ -204,43 +204,43 @@ const detailModal = ref({
 
 const columns = [
   {
-    title: '统一订单ID',
+    title: 'Order ID',
     dataIndex: 'unifiedOrderId',
     key: 'unifiedOrderId',
     width: 100
   },
   {
-    title: '数据源',
+    title: 'Source',
     dataIndex: 'source',
     key: 'source',
     width: 80
   },
   {
-    title: '订单号',
+    title: 'Order No.',
     key: 'orderNo',
     width: 150
   },
   {
-    title: '订单日期',
+    title: 'Order Date',
     dataIndex: 'orderDate',
     key: 'orderDate',
     width: 120
   },
   {
-    title: '订单金额',
+    title: 'Order Amount',
     dataIndex: 'totalAmount',
     key: 'totalAmount',
     width: 120,
     align: 'right'
   },
   {
-    title: '状态',
+    title: 'Status',
     dataIndex: 'status',
     key: 'status',
     width: 100
   },
   {
-    title: '操作',
+    title: 'Action',
     key: 'action',
     width: 100
   }
@@ -248,38 +248,38 @@ const columns = [
 
 const itemColumns = [
   {
-    title: '商品ID',
+    title: 'Product ID',
     dataIndex: 'productId',
     key: 'productId',
     width: 80
   },
   {
-    title: '商品名称',
+    title: 'Product Name',
     dataIndex: 'productName',
     key: 'productName',
     width: 200
   },
   {
-    title: '类别',
+    title: 'Category',
     dataIndex: 'category',
     key: 'category',
     width: 100
   },
   {
-    title: '数量',
+    title: 'Quantity',
     dataIndex: 'quantity',
     key: 'quantity',
     width: 60
   },
   {
-    title: '单价',
+    title: 'Unit Price',
     dataIndex: 'unitPrice',
     key: 'unitPrice',
     width: 100,
     align: 'right'
   },
   {
-    title: '小计',
+    title: 'Subtotal',
     dataIndex: 'subtotal',
     key: 'subtotal',
     width: 100,
