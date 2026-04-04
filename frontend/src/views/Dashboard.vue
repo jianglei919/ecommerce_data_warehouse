@@ -94,6 +94,10 @@ const categoryChartRef = ref()
 const syncStatus = ref('active')
 const lastTestTime = ref('')
 
+// 图表实例 (防止重复创建)
+let salesChart: any = null
+let categoryChart: any = null
+
 // 统计数据
 const totalSales = ref(0)
 const totalOrders = ref(0)
@@ -128,7 +132,12 @@ const initSalesChart = () => {
   const chartDom = salesChartRef.value
   if (!chartDom) return
 
-  const myChart = echarts.init(chartDom)
+  if (!salesChart) {
+    salesChart = echarts.init(chartDom)
+    window.addEventListener('resize', () => {
+      if (salesChart) salesChart.resize()
+    })
+  }
 
   // 显示加载状态
   const loadingOption = {
@@ -138,11 +147,10 @@ const initSalesChart = () => {
     yAxis: { type: 'value' },
     series: [{ data: [], type: 'line', smooth: true }],
   }
-  myChart.setOption(loadingOption)
+  salesChart.setOption(loadingOption)
 
   // 从API加载真实数据
   loadSalesData()
-  window.addEventListener('resize', () => myChart.resize())
 }
 
 // 从API加载销售数据
@@ -152,17 +160,17 @@ const loadSalesData = async () => {
     const startDate = dayjs().subtract(6, 'day').format('YYYY-MM-DD')
     
     const response = await analyticsApi.getSalesByDate(startDate, endDate)
+    console.log('Sales data response:', response)
     
-    if (response && response.data && response.data.length > 0) {
-      const chartDom = salesChartRef.value
-      const myChart = echarts.init(chartDom)
-      
+    if (response && response.data && response.data.length > 0 && salesChart) {
       // 按日期处理数据
       const dates = response.data.map((item: any) => {
         const date = new Date(item.order_date)
         return dayjs(date).format('MM-DD')
       })
       const amounts = response.data.map((item: any) => item.total_sales_amount || 0)
+      
+      console.log('Chart dates:', dates, 'amounts:', amounts)
       
       const option = {
         tooltip: { trigger: 'axis' },
@@ -179,7 +187,7 @@ const loadSalesData = async () => {
           },
         ],
       }
-      myChart.setOption(option)
+      salesChart.setOption(option)
     }
   } catch (error) {
     console.error('Failed to load sales data:', error)
@@ -191,7 +199,12 @@ const initCategoryChart = () => {
   const chartDom = categoryChartRef.value
   if (!chartDom) return
 
-  const myChart = echarts.init(chartDom)
+  if (!categoryChart) {
+    categoryChart = echarts.init(chartDom)
+    window.addEventListener('resize', () => {
+      if (categoryChart) categoryChart.resize()
+    })
+  }
 
   // 显示加载状态
   const loadingOption = {
@@ -199,11 +212,10 @@ const initCategoryChart = () => {
     legend: { orient: 'vertical', left: 'left' },
     series: [{ name: 'Sales', type: 'pie', radius: '50%', data: [] }],
   }
-  myChart.setOption(loadingOption)
+  categoryChart.setOption(loadingOption)
 
   // 从API加载真实数据
   loadCategoryData()
-  window.addEventListener('resize', () => myChart.resize())
 }
 
 // 从API加载分类销售数据
@@ -211,10 +223,7 @@ const loadCategoryData = async () => {
   try {
     const response = await analyticsApi.getSalesByCategory()
     
-    if (response && response.data && response.data.length > 0) {
-      const chartDom = categoryChartRef.value
-      const myChart = echarts.init(chartDom)
-      
+    if (response && response.data && response.data.length > 0 && categoryChart) {
       // 按分类分组统计
       const pieData = response.data.map((item: any) => ({
         name: item.category || 'Other',
@@ -240,7 +249,7 @@ const loadCategoryData = async () => {
           },
         ],
       }
-      myChart.setOption(option)
+      categoryChart.setOption(option)
     }
   } catch (error) {
     console.error('Failed to load category data:', error)
