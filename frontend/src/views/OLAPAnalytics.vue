@@ -261,12 +261,7 @@ const sliceYear = ref<number>(2024)
 const sliceData = ref([])
 const sliceLoading = ref(false)
 const sliceColumns = [
-  { title: 'Date', key: 'date', render: (text: any, record: any, index: number) => {
-    if (record && record.year && record.month && record.day) {
-      return `${record.year}-${String(record.month).padStart(2, '0')}-${String(record.day).padStart(2, '0')}`
-    }
-    return ''
-  }},
+  { title: 'Date', dataIndex: 'formatDate', key: 'date' },
   { title: 'Quantity', dataIndex: 'total_quantity', key: 'qty' },
   { title: 'Sales', dataIndex: 'total_sales_amount', key: 'sales', render: (val:number) => `$${val.toFixed(2)}` },
 ]
@@ -347,7 +342,11 @@ const fetchSliceData = async () => {
 
     const response = await fetch(url)
     const result = await response.json()
-    sliceData.value = result.data.map((item: any, idx: number) => ({ ...item, key: idx }))
+    sliceData.value = result.data.map((item: any, idx: number) => ({
+      ...item,
+      key: idx,
+      formatDate: `${item.year}-${String(item.month).padStart(2, '0')}-${String(item.day).padStart(2, '0')}`
+    }))
     
     // Update chart
     await updateSliceChart()
