@@ -190,15 +190,9 @@ const loadCategoryData = async () => {
       const myChart = echarts.init(chartDom)
       
       // 按分类分组统计
-      const categoryMap = new Map()
-      response.data.forEach((item: any) => {
-        const category = item.category || 'Other'
-        categoryMap.set(category, (categoryMap.get(category) || 0) + (item.total_amount || 0))
-      })
-      
-      const pieData = Array.from(categoryMap.entries()).map(([name, value]) => ({
-        name,
-        value: Math.round(value),
+      const pieData = response.data.map((item: any) => ({
+        name: item.category || 'Other',
+        value: Math.round(item.total_sales_amount || 0),
       }))
       
       const option = {

@@ -142,12 +142,14 @@ const loadSalesData = async () => {
     
     // 如果有返回数据，则更新salesData
     if (response && response.data && response.data.length > 0) {
+      const totalSales = response.data.reduce((sum: number, item: any) => sum + (item.total_sales_amount || 0), 0)
+      
       salesData.value = response.data.map((item: any, index: number) => ({
         key: String(index + 1),
         category: item.category || `Category ${index + 1}`,
-        sales: item.sales ? `${(item.sales / 1000).toFixed(0)}K` : '0',
-        percentage: item.percentage || 0,
-        orders: item.orders || 0,
+        sales: item.total_sales_amount ? `${(item.total_sales_amount / 1000).toFixed(0)}K` : '0',
+        percentage: totalSales > 0 ? parseInt(((item.total_sales_amount / totalSales) * 100).toString()) : 0,
+        orders: item.order_count || 0,
       }))
       updateChart()
       message.success('Data loaded successfully')

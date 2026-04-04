@@ -56,9 +56,9 @@ const topProducts = ref<any[]>([])
 const columns = [
   { title: 'Product', dataIndex: 'name', key: 'name' },
   { title: 'Category', dataIndex: 'category', key: 'category' },
+  { title: 'Brand', dataIndex: 'brand', key: 'brand' },
   { title: 'Rating', dataIndex: 'rating', key: 'rating' },
-  { title: 'Reviews', dataIndex: 'reviews', key: 'reviews' },
-  { title: 'Sales', dataIndex: 'sales', key: 'sales' },
+  { title: 'Sales ($)', dataIndex: 'totalSalesAmount', key: 'totalSalesAmount' },
   { title: 'Status', dataIndex: 'status', key: 'status' },
 ]
 
@@ -117,11 +117,13 @@ const loadTopProducts = async () => {
       topProducts.value = response.data.map((item: any, index: number) => ({
         key: String(index + 1),
         productId: item.productId || `P${String(index + 1).padStart(3, '0')}`,
-        name: item.name || item.product_name || `Product ${index + 1}`,
+        name: item.name || `Product ${index + 1}`,
         category: item.category || 'Other',
+        brand: item.brand || 'Unknown',
         rating: item.rating || 0,
-        reviews: item.reviews || 0,
-        sales: item.sales || 0,
+        reviews: item.salesCount || 0,
+        totalSalesAmount: `$${item.totalSalesAmount ? item.totalSalesAmount.toFixed(2) : '0.00'}`,
+        sales: item.totalSalesAmount || 0,
         status: item.status || 'Active',
       }))
 
