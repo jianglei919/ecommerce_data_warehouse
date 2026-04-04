@@ -218,7 +218,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { message } from 'ant-design-vue'
 
@@ -428,6 +428,14 @@ onMounted(() => {
   fetchSliceData()
   fetchDiceData()
   fetchPivotData()
+})
+
+// Watch for Slice tab activation to ensure chart renders
+watch(activeTab, async (newVal) => {
+  if (newVal === 'slice') {
+    await nextTick()
+    await updateSliceChart()
+  }
 })
 </script>
 
