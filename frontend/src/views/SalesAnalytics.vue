@@ -38,6 +38,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import * as echarts from 'echarts'
+import { message } from 'ant-design-vue'
 import { analyticsApi } from '../api/analytics'
 import dayjs, { Dayjs } from 'dayjs'
 
@@ -83,33 +84,63 @@ const columns = [
 
 const pagination = { pageSize: 10 }
 
-const initChart = () => {
+const barColors = ['#667eea', '#52c41a', '#faad14', '#f5222d']
+
+const initChart = (categories: string[] = ['Electronics', 'Wearables', 'Audio', 'Accessories'], 
+                   salesData: number[] = [35000, 25000, 20000, 15000],
+                   ordersData: number[] = [450, 320, 280, 200]) => {
   const chartDom = analyticsChartRef.value
   if (!chartDom) return
 
   const myChart = echarts.init(chartDom)
 
   const option = {
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['Sales', 'Orders'] },
+    tooltip: { 
+      trigger: 'axis',
+      formatter: (params: any) => {
+        let result = params[0].axisValue + '<br/>'
+        params.forEach((param: any) => {
+          result += `${param.marker} ${param.seriesName}: ${param.value.toLocaleString()}<br/>`
+        })
+        return result
+      }
+    },
+    legend: { data: ['Sales ($)', 'Orders (#)'] },
     grid: { left: '3%', right: '4%', bottom: '3%', top: '10%', containLabel: true },
     xAxis: {
       type: 'category',
-      data: ['Electronics', 'Wearables', 'Audio', 'Accessories'],
+      data: categories,
     },
-    yAxis: { type: 'value' },
+    yAxis: [
+      { 
+        type: 'value',
+        name: 'Sales ($)',
+        axisLabel: { formatter: '${value}' }
+      },
+      { 
+        type: 'value',
+        name: 'Orders (#)',
+        position: 'right',
+        axisLabel: { formatter: '{value}' }
+      }
+    ],
     series: [
       {
-        name: 'Sales',
+        name: 'Sales ($)',
         type: 'bar',
-        data: [35000, 25000, 20000, 15000],
-        itemStyle: { color: '#667eea' },
+        data: salesData,
+        yAxisIndex: 0,
+        itemStyle: {
+          color: (params: any) => barColors[params.dataIndex % barColors.length]
+        },
       },
       {
-        name: 'Orders',
+        name: 'Orders (#)',
         type: 'line',
-        data: [450, 320, 280, 200],
+        data: ordersData,
+        yAxisIndex: 1,
         itemStyle: { color: '#764ba2' },
+        smooth: true,
       },
     ],
   }
@@ -118,13 +149,43 @@ const initChart = () => {
   window.addEventListener('resize', () => myChart.resize())
 }
 
+const updateChart = () => {
+  const categories = salesData.value.map(item => item.category)
+  const sales = salesData.value.map(item => parseInt(item.sales.replace(/,/g, '')))
+  const orders = salesData.value.map(item => item.orders)
+  initChart(categories, sales, orders)
+}
+
 const loadSalesData = async () => {
   try {
-    const startDate = dateRange.value?.[0].format('YYYY-MM-DD')
-    const endDate = dateRange.value?.[1].format('YYYY-MM-DD')
-    await analyticsApi.getSalesByCategory(startDate, endDate)
+    if (!dateRange.value || dateRange.value.length !== 2) {
+      message.warning('Please select a date range first')
+      return
+    }
+    
+    const startDate = dateRange.value[0].format('YYYY-MM-DD')
+    const endDate = dateRange.value[1].format('YYYY-MM-DD')
+    
+    // 调用API获取数据
+    const response = await analyticsApi.getSalesByCategory(startDate, endDate)
+    
+    // 如果有返回数据，则更新salesData
+    if (response && response.data && response.data.length > 0) {
+      salesData.value = response.data.map((item: any, index: number) => ({
+        key: String(index + 1),
+        category: item.category || `Category ${index + 1}`,
+        sales: item.sales ? `${(item.sales / 1000).toFixed(0)}K` : '0',
+        percentage: item.percentage || 0,
+        orders: item.orders || 0,
+      }))
+      updateChart()
+      message.success('Data loaded successfully')
+    } else {
+      message.info('No data available for selected date range')
+    }
   } catch (error) {
     console.error('Failed to load sales data:', error)
+    message.error('Failed to load sales data')
   }
 }
 
