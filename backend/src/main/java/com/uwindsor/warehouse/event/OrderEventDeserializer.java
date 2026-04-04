@@ -1,6 +1,7 @@
 package com.uwindsor.warehouse.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +16,11 @@ import java.util.Map;
 public class OrderEventDeserializer implements Deserializer<OrderEvent> {
     private static final Logger log = LoggerFactory.getLogger(OrderEventDeserializer.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    public OrderEventDeserializer() {
+        // Register JSR310 module for LocalDateTime/LocalDate support
+        objectMapper.registerModule(new JavaTimeModule());
+    }
 
     @Override
     public void configure(Map<String, ?> configs, boolean isKey) {
