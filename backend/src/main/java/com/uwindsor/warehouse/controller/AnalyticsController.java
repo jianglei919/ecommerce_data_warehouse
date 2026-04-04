@@ -2,6 +2,7 @@ package com.uwindsor.warehouse.controller;
 
 import com.uwindsor.warehouse.event.OrderEvent;
 import com.uwindsor.warehouse.service.ETLService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -278,6 +279,31 @@ public class AnalyticsController {
             return ResponseEntity.status(500).body(Map.of(
                     "status", "error",
                     "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * 测试 Jackson 反序列化
+     */
+    @PostMapping("/test/deserialize-test")
+    public ResponseEntity<?> testDeserialize(@RequestBody String jsonString) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            log.info(">>> Testing Jackson deserialization");
+            log.info(">>> Raw JSON: {}", jsonString);
+            
+            OrderEvent event = mapper.readValue(jsonString, OrderEvent.class);
+            log.info(">>> After deserialization: orderId={}, eventType={}, source={}", 
+                    event.getOrderId(), event.getEventType(), event.getSource());
+            
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "orderId", event.getOrderId(),
+                    "eventType", event.getEventType(),
+                    "source", event.getSource()));
+        } catch (Exception e) {
+            log.error(">>> Error: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
     }
 
