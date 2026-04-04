@@ -53,11 +53,11 @@ spring:
 
   # Redis 配置
   redis:
-    host: ${SPRING_REDIS_HOST:warehouse-redis}
-    port: ${SPRING_REDIS_PORT:6379}
-    password: ${SPRING_REDIS_PASSWORD:}
+    host: redis
+    port: 6379
+    password:
     timeout: 2000ms
-    jedis:
+    lettuce:
       pool:
         max-active: 20
         max-idle: 10
