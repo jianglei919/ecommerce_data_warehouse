@@ -126,10 +126,10 @@
                 placeholder="Select Categories"
                 @change="fetchDiceData"
               >
-                <a-select-option value="Electronics">Electronics</a-select-option>
-                <a-select-option value="Computers">Computers</a-select-option>
-                <a-select-option value="Accessories">Accessories</a-select-option>
-                <a-select-option value="Furniture">Furniture</a-select-option>
+                <a-select-option key="Electronics" value="Electronics">Electronics</a-select-option>
+                <a-select-option key="Computers" value="Computers">Computers</a-select-option>
+                <a-select-option key="Accessories" value="Accessories">Accessories</a-select-option>
+                <a-select-option key="Furniture" value="Furniture">Furniture</a-select-option>
               </a-select>
             </a-col>
             <a-col :xs="24" :sm="8">
@@ -148,10 +148,18 @@
                 placeholder="Select Months"
                 @change="fetchDiceData"
               >
-                <a-select-option value="1">January</a-select-option>
-                <a-select-option value="2">February</a-select-option>
-                <a-select-option value="3">March</a-select-option>
-                <a-select-option value="4">April</a-select-option>
+                <a-select-option key="1" value="1">January</a-select-option>
+                <a-select-option key="2" value="2">February</a-select-option>
+                <a-select-option key="3" value="3">March</a-select-option>
+                <a-select-option key="4" value="4">April</a-select-option>
+                <a-select-option key="5" value="5">May</a-select-option>
+                <a-select-option key="6" value="6">June</a-select-option>
+                <a-select-option key="7" value="7">July</a-select-option>
+                <a-select-option key="8" value="8">August</a-select-option>
+                <a-select-option key="9" value="9">September</a-select-option>
+                <a-select-option key="10" value="10">October</a-select-option>
+                <a-select-option key="11" value="11">November</a-select-option>
+                <a-select-option key="12" value="12">December</a-select-option>
               </a-select>
             </a-col>
           </a-row>
@@ -401,6 +409,8 @@ const updateSliceChart = () => {
 // Load data on mount
 onMounted(() => {
   fetchRollupData()
+  // Pre-load Dice data with default selections
+  fetchDiceData()
 })
 </script>
 
