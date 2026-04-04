@@ -27,6 +27,7 @@
         :columns="columns"
         :data-source="salesData"
         :pagination="pagination"
+        row-key="key"
         style="margin-top: 20px"
       >
         <template #bodyCell="{ column, record }">
