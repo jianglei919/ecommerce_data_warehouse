@@ -218,7 +218,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { message } from 'ant-design-vue'
 
@@ -345,7 +345,7 @@ const fetchSliceData = async () => {
     sliceData.value = result.data.map((item: any, idx: number) => ({ ...item, key: idx }))
     
     // Update chart
-    updateSliceChart()
+    await updateSliceChart()
   } catch (error) {
     message.error('Failed to load slice data')
     console.error(error)
@@ -404,7 +404,9 @@ const fetchPivotData = async () => {
   }
 }
 
-const updateSliceChart = () => {
+const updateSliceChart = async () => {
+  await nextTick()
+  
   if (!sliceChartRef.value || sliceData.value.length === 0) return
 
   const chart = echarts.init(sliceChartRef.value)
