@@ -144,6 +144,67 @@ public class AnalyticsController {
     }
 
     /**
+     * 获取销售趋势 - 按日期分组 (用于Sales Trend图表)
+     */
+    @GetMapping("/sales/by-date")
+    public ResponseEntity<?> getSalesByDate(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+
+        try {
+            String sql = "SELECT " +
+                    "uo.order_date, " +
+                    "SUM(uoi.quantity) as total_quantity, " +
+                    "SUM(uoi.subtotal) as total_sales_amount, " +
+                    "COUNT(DISTINCT uo.order_id) as order_count " +
+                    "FROM dim_orders uo " +
+                    "LEFT JOIN dim_order_items uoi ON uo.order_id = uoi.order_id " +
+                    "WHERE 1=1";
+
+            if (startDate != null && !startDate.isEmpty()) {
+                sql += " AND uo.order_date >= '" + startDate + "'";
+            }
+            if (endDate != null && !endDate.isEmpty()) {
+                sql += " AND uo.order_date <= '" + endDate + "'";
+            }
+
+            sql += " GROUP BY uo.order_date ORDER BY uo.order_date ASC";
+
+            Connection conn = warehouseDataSource.getConnection();
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+
+            List<Map<String, Object>> salesList = new ArrayList<>();
+            while (rs.next()) {
+                Map<String, Object> row = new HashMap<>();
+                row.put("order_date", rs.getDate("order_date"));
+                row.put("total_quantity", rs.getInt("total_quantity"));
+                row.put("total_sales_amount", rs.getDouble("total_sales_amount"));
+                row.put("order_count", rs.getInt("order_count"));
+                salesList.add(row);
+            }
+
+            rs.close();
+            stmt.close();
+            conn.close();
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("status", "success");
+            result.put("data", salesList);
+            result.put("timestamp", LocalDateTime.now());
+
+            log.info("Fetched sales data for {} dates", salesList.size());
+            return ResponseEntity.ok(result);
+
+        } catch (Exception e) {
+            log.error("Error fetching sales by date: {}", e.getMessage());
+            return ResponseEntity.status(500).body(Map.of(
+                    "status", "error",
+                    "message", e.getMessage()));
+        }
+    }
+
+    /**
      * 获取热门商品排名 - 支持按源系统筛选 (APP/WEB/所有)
      * 
      * @param source 源系统 (可选: APP, WEB, 或留空表示所有)

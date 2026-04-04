@@ -151,21 +151,18 @@ const loadSalesData = async () => {
     const endDate = dayjs().format('YYYY-MM-DD')
     const startDate = dayjs().subtract(6, 'day').format('YYYY-MM-DD')
     
-    const response = await analyticsApi.getSalesByCategory(startDate, endDate)
+    const response = await analyticsApi.getSalesByDate(startDate, endDate)
     
     if (response && response.data && response.data.length > 0) {
       const chartDom = salesChartRef.value
       const myChart = echarts.init(chartDom)
       
-      // 按日期分组统计
-      const dateMap = new Map()
-      response.data.forEach((item: any) => {
-        const key = `${item.order_date || dayjs().format('YYYY-MM-DD')}`
-        dateMap.set(key, (dateMap.get(key) || 0) + (item.total_amount || 0))
+      // 按日期处理数据
+      const dates = response.data.map((item: any) => {
+        const date = new Date(item.order_date)
+        return dayjs(date).format('MM-DD')
       })
-      
-      const dates = Array.from(dateMap.keys()).sort()
-      const amounts = dates.map(date => dateMap.get(date))
+      const amounts = response.data.map((item: any) => item.total_sales_amount || 0)
       
       const option = {
         tooltip: { trigger: 'axis' },

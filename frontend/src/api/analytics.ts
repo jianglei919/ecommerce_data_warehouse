@@ -21,6 +21,12 @@ export const analyticsApi = {
       params: { startDate, endDate },
     }),
 
+  // 获取按日期的销售趋势 (用于Sales Trend图表)
+  getSalesByDate: (startDate?: string, endDate?: string) =>
+    apiClient.get('/api/analytics/sales/by-date', {
+      params: { startDate, endDate },
+    }),
+
   // 获取销售总统计
   getSalesSummary: (startDate?: string, endDate?: string) =>
     apiClient.get('/api/analytics/sales/summary', {
