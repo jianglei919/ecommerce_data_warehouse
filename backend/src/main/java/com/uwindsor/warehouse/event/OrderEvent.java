@@ -1,5 +1,6 @@
 package com.uwindsor.warehouse.event;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -30,6 +31,7 @@ public class OrderEvent implements Serializable {
      * 事件类型: ORDER_CREATED, ORDER_UPDATED, ORDER_DELETED
      */
     @JsonProperty("event_type")
+    @JsonAlias("eventType")
     private String eventType;
 
     /**
@@ -42,36 +44,42 @@ public class OrderEvent implements Serializable {
      * 订单ID (App) 或 订单号 (Web)
      */
     @JsonProperty("order_id")
+    @JsonAlias({ "orderId", "order_no" })
     private String orderId;
 
     /**
      * 用户ID
      */
     @JsonProperty("user_id")
+    @JsonAlias("userId")
     private Long userId;
 
     /**
      * 订单日期
      */
     @JsonProperty("order_date")
+    @JsonAlias("orderDate")
     private String orderDate;
 
     /**
      * 订单总金额
      */
     @JsonProperty("total_amount")
+    @JsonAlias("totalAmount")
     private Double totalAmount;
 
     /**
      * 订单状态
      */
     @JsonProperty("order_status")
+    @JsonAlias("orderStatus")
     private String orderStatus;
 
     /**
      * 商品数量
      */
     @JsonProperty("item_count")
+    @JsonAlias("itemCount")
     private Integer itemCount;
 
     /**

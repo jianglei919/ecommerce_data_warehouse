@@ -288,10 +288,42 @@ public class AnalyticsController {
     @PostMapping("/test/send-order")
     public ResponseEntity<?> sendTestOrder(@RequestBody OrderEvent orderEvent) {
         try {
-            orderEvent.setEventId(UUID.randomUUID().toString());
+            // 立即记录接收到的原始对象
+            log.info(">>> RECEIVED ORDER EVENT (after @RequestBody  deserialization):");
+            log.info("    eventId={}, eventType={}, source={}",
+                    orderEvent.getEventId(), orderEvent.getEventType(), orderEvent.getSource());
+            log.info("    orderId={}, userId={}, totalAmount={}",
+                    orderEvent.getOrderId(), orderEvent.getUserId(), orderEvent.getTotalAmount());
+            log.info("    orderDate={}, orderStatus={}, itemCount={}",
+                    orderEvent.getOrderDate(), orderEvent.getOrderStatus(), orderEvent.getItemCount());
+
+            // 确保所有必须的字段都已初始化
+            if (orderEvent.getEventId() == null) {
+                orderEvent.setEventId(UUID.randomUUID().toString());
+            }
+            if (orderEvent.getEventType() == null) {
+                orderEvent.setEventType("ORDER_CREATED");
+            }
+            if (orderEvent.getSource() == null) {
+                orderEvent.setSource("APP");
+            }
+            if (orderEvent.getOrderDate() == null) {
+                orderEvent.setOrderDate(LocalDateTime.now().toString());
+            }
+            if (orderEvent.getOrderStatus() == null) {
+                orderEvent.setOrderStatus("PENDING");
+            }
+            if (orderEvent.getUserId() == null) {
+                orderEvent.setUserId(System.currentTimeMillis() % 1000); // 使用时间戳作为默认用户ID
+            }
+
             orderEvent.setEventTimestamp(System.currentTimeMillis());
             orderEvent.setCreatedAt(LocalDateTime.now());
             orderEvent.setRetryCount(0);
+
+            log.info("Sending test order event: id={}, source={}, orderId={}, amount={}",
+                    orderEvent.getEventId(), orderEvent.getSource(),
+                    orderEvent.getOrderId(), orderEvent.getTotalAmount());
 
             kafkaTemplate.send("order-events", orderEvent.getEventId(), orderEvent)
                     .whenComplete((result, ex) -> {
@@ -308,7 +340,7 @@ public class AnalyticsController {
                     "message", "Test order sent to Kafka"));
 
         } catch (Exception e) {
-            log.error("Error sending test order: {}", e.getMessage());
+            log.error("Error sending test order: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body(Map.of(
                     "status", "error",
                     "message", e.getMessage()));
