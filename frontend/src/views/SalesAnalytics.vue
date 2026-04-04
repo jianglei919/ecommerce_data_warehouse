@@ -2,15 +2,19 @@
   <div class="analytics-container">
     <a-card title="📊 Sales Analytics">
       <a-row :gutter="[16, 16]" style="margin-bottom: 20px">
-        <a-col :xs="24" :sm="12">
-          <a-date-picker
-            v-model:value="dateRange"
-            type="dateRange"
-            placeholder="Select date range"
-            style="width: 100%"
-          />
+        <a-col :xs="24" :sm="8">
+          <label style="font-size: 13px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px">Select Year</label>
+          <a-select
+            v-model:value="selectedYear"
+            placeholder="Select a year"
+            style="width: 100%; margin-top: 8px"
+          >
+            <a-select-option value="2024">2024</a-select-option>
+            <a-select-option value="2025">2025</a-select-option>
+            <a-select-option value="2026">2026</a-select-option>
+          </a-select>
         </a-col>
-        <a-col :xs="24" :sm="12">
+        <a-col :xs="24" :sm="8" style="display: flex; align-items: flex-end">
           <a-button type="primary" @click="loadSalesData" style="width: 100%">
             Load Data
           </a-button>
@@ -40,10 +44,9 @@ import { ref, onMounted } from 'vue'
 import * as echarts from 'echarts'
 import { message } from 'ant-design-vue'
 import { analyticsApi } from '../api/analytics'
-import dayjs, { Dayjs } from 'dayjs'
 
 const analyticsChartRef = ref()
-const dateRange = ref<[Dayjs, Dayjs] | null>(null)
+const selectedYear = ref<string | null>(null)
 const salesData = ref<any[]>([]) // 初始化为空，从API加载真实数据
 
 const columns = [
@@ -129,23 +132,14 @@ const updateChart = () => {
 
 const loadSalesData = async () => {
   try {
-    let startDate: string | undefined
-    let endDate: string | undefined
-    
-    if (dateRange.value && Array.isArray(dateRange.value) && dateRange.value.length === 2) {
-      startDate = dateRange.value[0].format('YYYY-MM-DD')
-      endDate = dateRange.value[1].format('YYYY-MM-DD')
-      
-      // 验证日期范围有效性
-      if (startDate > endDate) {
-        message.warning('Start date must be before end date')
-        return
-      }
-    } else {
-      // 如果没有选择日期，提示用户需要选择
-      message.warning('Please select a date range first')
+    if (!selectedYear.value) {
+      message.warning('Please select a year first')
       return
     }
+    
+    const year = selectedYear.value
+    const startDate = `${year}-01-01`
+    const endDate = `${year}-12-31`
     
     // 调用API获取数据
     const response = await analyticsApi.getSalesByCategory(startDate, endDate)
@@ -163,12 +157,12 @@ const loadSalesData = async () => {
         orders: item.order_count || 0,
       }))
       updateChart()
-      message.success('Data loaded successfully')
+      message.success(`Data for ${year} loaded successfully`)
     } else {
       // 清空表格和图表
       salesData.value = []
       initChart()
-      message.info('No data available for the selected date range')
+      message.info(`No data available for year ${year}`)
     }
   } catch (error) {
     console.error('Failed to load sales data:', error)
