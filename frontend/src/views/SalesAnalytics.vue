@@ -129,13 +129,14 @@ const updateChart = () => {
 
 const loadSalesData = async () => {
   try {
-    if (!dateRange.value || dateRange.value.length !== 2) {
-      message.warning('Please select a date range first')
-      return
-    }
+    // 支持有日期范围和没有日期范围的两种情况
+    let startDate: string | undefined
+    let endDate: string | undefined
     
-    const startDate = dateRange.value[0].format('YYYY-MM-DD')
-    const endDate = dateRange.value[1].format('YYYY-MM-DD')
+    if (dateRange.value && Array.isArray(dateRange.value) && dateRange.value.length === 2) {
+      startDate = dateRange.value[0].format('YYYY-MM-DD')
+      endDate = dateRange.value[1].format('YYYY-MM-DD')
+    }
     
     // 调用API获取数据
     const response = await analyticsApi.getSalesByCategory(startDate, endDate)
@@ -145,9 +146,9 @@ const loadSalesData = async () => {
       const totalSales = response.data.reduce((sum: number, item: any) => sum + (item.total_sales_amount || 0), 0)
       
       salesData.value = response.data.map((item: any, index: number) => ({
-        key: String(index + 1),
+        key: String(index),
         category: item.category || `Category ${index + 1}`,
-        sales: item.total_sales_amount ? `${(item.total_sales_amount / 1000).toFixed(0)}K` : '0',
+        sales: item.total_sales_amount ? `$${(item.total_sales_amount).toFixed(2)}` : '$0',
         percentage: totalSales > 0 ? parseInt(((item.total_sales_amount / totalSales) * 100).toString()) : 0,
         orders: item.order_count || 0,
       }))
@@ -164,6 +165,8 @@ const loadSalesData = async () => {
 
 onMounted(() => {
   initChart()
+  // 页面加载时自动加载所有数据
+  loadSalesData()
 })
 </script>
 
