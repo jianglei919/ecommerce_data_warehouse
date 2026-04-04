@@ -11,6 +11,7 @@
             <li><router-link to="/sales">Sales Analytics</router-link></li>
             <li><router-link to="/products">Product Insights</router-link></li>
             <li><router-link to="/sync">Sync Monitor</router-link></li>
+            <li><router-link to="/olap">OLAP Analytics</router-link></li>
           </ul>
         </nav>
       </div>

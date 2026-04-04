@@ -6,6 +6,7 @@ import SalesAnalytics from '../views/SalesAnalytics.vue'
 import ProductInsights from '../views/ProductInsights.vue'
 import SyncMonitor from '../views/SyncMonitor.vue'
 import UnifiedOrders from '../views/UnifiedOrders.vue'
+import OLAPAnalytics from '../views/OLAPAnalytics.vue'
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -32,6 +33,11 @@ const routes: Array<RouteRecordRaw> = [
     path: '/sync',
     name: 'SyncMonitor',
     component: SyncMonitor,
+  },
+  {
+    path: '/olap',
+    name: 'OLAPAnalytics',
+    component: OLAPAnalytics,
   },
 ]
 
