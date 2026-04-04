@@ -129,13 +129,22 @@ const updateChart = () => {
 
 const loadSalesData = async () => {
   try {
-    // 支持有日期范围和没有日期范围的两种情况
     let startDate: string | undefined
     let endDate: string | undefined
     
     if (dateRange.value && Array.isArray(dateRange.value) && dateRange.value.length === 2) {
       startDate = dateRange.value[0].format('YYYY-MM-DD')
       endDate = dateRange.value[1].format('YYYY-MM-DD')
+      
+      // 验证日期范围有效性
+      if (startDate > endDate) {
+        message.warning('Start date must be before end date')
+        return
+      }
+    } else {
+      // 如果没有选择日期，提示用户需要选择
+      message.warning('Please select a date range first')
+      return
     }
     
     // 调用API获取数据
@@ -156,7 +165,10 @@ const loadSalesData = async () => {
       updateChart()
       message.success('Data loaded successfully')
     } else {
-      message.info('No data available for selected date range')
+      // 清空表格和图表
+      salesData.value = []
+      initChart()
+      message.info('No data available for the selected date range')
     }
   } catch (error) {
     console.error('Failed to load sales data:', error)
@@ -166,8 +178,8 @@ const loadSalesData = async () => {
 
 onMounted(() => {
   initChart()
-  // 页面加载时自动加载所有数据
-  loadSalesData()
+  // 页面加载时只初始化图表，不自动加载数据
+  // 等待用户选择日期范围后点击"Load Data"按钮
 })
 </script>
 
