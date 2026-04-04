@@ -1,122 +1,53 @@
 -- =====================================================
--- ecommerce_source_web - Web业务系统数据库
+-- ecommerce_source_web - Web业务系统数据库 (简化版)
 -- =====================================================
--- 数据特点:
---   - order_no: VARCHAR 类型 (主键)
---   - order_date: MM/dd/yyyy 格式 (逻辑上)
---   - order_items 使用 order_no 字段 (而非 order_id)
+-- 根据 Ecommerce Data Warehouse Design Report.pdf 重新设计
+-- 仅保留统一订单表，用于聚合 App 和 Web 数据
 -- =====================================================
--- 用户表
+-- 统一订单表 (Web源)
 CREATE TABLE
-    users (
-        user_id INT PRIMARY KEY AUTO_INCREMENT,
-        username VARCHAR(100) UNIQUE NOT NULL,
-        email VARCHAR(100) UNIQUE NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        KEY idx_username (username)
-    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-
--- 产品表
-CREATE TABLE
-    products (
-        product_id INT PRIMARY KEY AUTO_INCREMENT,
-        product_name VARCHAR(200) NOT NULL,
-        category VARCHAR(50) NOT NULL,
-        price DECIMAL(10, 2) NOT NULL,
-        stock_quantity INT DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        KEY idx_category (category),
-        KEY idx_product_name (product_name)
-    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-
--- 订单表 (Web: order_no VARCHAR)
-CREATE TABLE
-    orders (
-        order_no VARCHAR(50) PRIMARY KEY COMMENT '订单号 (Web)',
-        user_id INT NOT NULL,
-        order_date DATE NOT NULL COMMENT 'Web格式: MM/dd/yyyy (逻辑)',
-        total_amount DECIMAL(15, 2) NOT NULL,
-        status VARCHAR(20) DEFAULT 'pending',
+    unified_orders (
+        unified_order_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '统一订单ID',
+        source VARCHAR(10) NOT NULL COMMENT 'WEB',
+        web_order_no VARCHAR(50) NOT NULL COMMENT 'Web系统订单号',
+        user_id INT NOT NULL COMMENT '用户ID',
+        order_date DATE NOT NULL COMMENT '订单日期',
+        total_amount DECIMAL(15, 2) NOT NULL COMMENT '总金额',
+        status VARCHAR(20) DEFAULT 'pending' COMMENT '订单状态',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (user_id),
+        UNIQUE KEY uk_web_order (web_order_no),
         KEY idx_order_date (order_date),
         KEY idx_user_id (user_id),
         KEY idx_status (status)
-    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '统一订单表 (Web)';
 
--- 订单项目表 (使用 order_no 字段)
+-- 统一订单项详情表 (Web源)
 CREATE TABLE
-    order_items (
-        order_item_id INT PRIMARY KEY AUTO_INCREMENT,
-        order_no VARCHAR(50) NOT NULL COMMENT '订单号 (而非 order_id)',
-        product_id INT NOT NULL,
-        quantity INT NOT NULL DEFAULT 1,
-        unit_price DECIMAL(10, 2) NOT NULL,
-        subtotal DECIMAL(15, 2) NOT NULL,
-        FOREIGN KEY (order_no) REFERENCES orders (order_no) ON DELETE CASCADE,
-        FOREIGN KEY (product_id) REFERENCES products (product_id),
-        KEY idx_order_no (order_no),
-        KEY idx_product_id (product_id)
-    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-
--- 产品评论表
-CREATE TABLE
-    product_reviews (
-        review_id INT PRIMARY KEY AUTO_INCREMENT,
-        product_id INT NOT NULL,
-        user_id INT NOT NULL,
-        rating INT NOT NULL CHECK (
-            rating >= 1
-            AND rating <= 5
-        ),
-        review_text TEXT,
-        review_date DATE NOT NULL,
+    unified_order_items (
+        unified_item_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '订单项ID',
+        unified_order_id INT NOT NULL COMMENT '订单ID',
+        product_id INT NOT NULL COMMENT '商品ID',
+        product_name VARCHAR(200) NOT NULL COMMENT '商品名称',
+        category VARCHAR(50) COMMENT '商品类别',
+        quantity INT NOT NULL DEFAULT 1 COMMENT '购买数量',
+        unit_price DECIMAL(10, 2) NOT NULL COMMENT '单价',
+        subtotal DECIMAL(15, 2) NOT NULL COMMENT '小计',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (product_id) REFERENCES products (product_id),
-        FOREIGN KEY (user_id) REFERENCES users (user_id),
+        FOREIGN KEY (unified_order_id) REFERENCES unified_orders (unified_order_id) ON DELETE CASCADE,
+        KEY idx_order_id (unified_order_id),
         KEY idx_product_id (product_id),
-        KEY idx_user_id (user_id),
-        KEY idx_review_date (review_date)
-    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+        KEY idx_category (category)
+    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '统一订单项详情表 (Web)';
 
 -- =====================================================
 -- 示例数据
 -- =====================================================
--- 用户
+-- Web 统一订单 (10条)
 INSERT INTO
-    users (username, email)
-VALUES
-    ('user_web_001', 'user1@web.com'),
-    ('user_web_002', 'user2@web.com'),
-    ('user_web_003', 'user3@web.com'),
-    ('user_web_004', 'user4@web.com'),
-    ('user_web_005', 'user5@web.com');
-
--- 产品
-INSERT INTO
-    products (product_name, category, price, stock_quantity)
-VALUES
-    ('Samsung Galaxy S24', 'Electronics', 899.99, 55),
-    (
-        'Samsung Galaxy Tab S9',
-        'Electronics',
-        649.99,
-        40
-    ),
-    ('Samsung Galaxy Buds Pro', 'Audio', 229.99, 90),
-    ('Google Pixel 8', 'Electronics', 799.99, 50),
-    ('Google Pixel Watch', 'Wearables', 299.99, 75),
-    ('USB Charger', 'Accessories', 29.99, 400),
-    ('Case Cover', 'Accessories', 19.99, 250),
-    ('Screen Film', 'Accessories', 7.99, 350),
-    ('Phone Mount', 'Accessories', 24.99, 120),
-    ('Tempered Glass', 'Accessories', 12.99, 280);
-
--- 订单 (Web: VARCHAR order_no, 日期逻辑上是MM/dd/yyyy)
-INSERT INTO
-    orders (
-        order_no,
+    unified_orders (
+        source,
+        web_order_no,
         user_id,
         order_date,
         total_amount,
@@ -124,153 +55,285 @@ INSERT INTO
     )
 VALUES
     (
+        'WEB',
         'WEB-2024-001',
         1,
         '2024-01-15',
-        1129.98,
+        899.99,
         'completed'
     ),
     (
+        'WEB',
         'WEB-2024-002',
         2,
         '2024-01-16',
-        649.99,
+        1299.98,
         'completed'
     ),
     (
+        'WEB',
         'WEB-2024-003',
         3,
         '2024-01-17',
-        2099.96,
+        749.97,
         'completed'
     ),
     (
+        'WEB',
         'WEB-2024-004',
-        1,
-        '2024-01-18',
-        299.97,
-        'completed'
-    ),
-    (
-        'WEB-2024-005',
         4,
-        '2024-01-19',
-        529.97,
+        '2024-01-18',
+        1999.96,
         'completed'
     ),
     (
-        'WEB-2024-006',
+        'WEB',
+        'WEB-2024-005',
         5,
-        '2024-01-20',
-        1579.94,
+        '2024-01-19',
+        2099.97,
         'completed'
     ),
     (
+        'WEB',
+        'WEB-2024-006',
+        1,
+        '2024-02-15',
+        599.99,
+        'completed'
+    ),
+    (
+        'WEB',
         'WEB-2024-007',
         2,
-        '2024-01-21',
-        229.99,
+        '2024-02-16',
+        1199.98,
         'completed'
     ),
     (
+        'WEB',
         'WEB-2024-008',
         3,
-        '2024-01-22',
-        889.96,
+        '2024-02-17',
+        899.97,
         'completed'
     ),
     (
+        'WEB',
         'WEB-2024-009',
-        1,
-        '2024-01-23',
-        79.96,
+        4,
+        '2024-02-18',
+        1599.98,
         'completed'
     ),
     (
+        'WEB',
         'WEB-2024-010',
-        4,
-        '2024-01-24',
-        749.97,
+        5,
+        '2024-02-19',
+        999.99,
         'completed'
     );
 
--- 订单项目 (使用 order_no 字段名)
+-- Web 订单项 (25条示例数据)
 INSERT INTO
-    order_items (
-        order_no,
+    unified_order_items (
+        unified_order_id,
         product_id,
+        product_name,
+        category,
         quantity,
         unit_price,
         subtotal
     )
 VALUES
-    ('WEB-2024-001', 1, 1, 899.99, 899.99),
-    ('WEB-2024-001', 6, 1, 29.99, 29.99),
-    ('WEB-2024-001', 7, 4, 19.99, 79.96),
-    ('WEB-2024-002', 2, 1, 649.99, 649.99),
-    ('WEB-2024-003', 1, 2, 899.99, 1799.98),
-    ('WEB-2024-003', 6, 1, 29.99, 29.99),
-    ('WEB-2024-003', 8, 9, 7.99, 71.91),
-    ('WEB-2024-003', 9, 1, 24.99, 24.99),
-    ('WEB-2024-004', 3, 1, 229.99, 229.99),
-    ('WEB-2024-004', 10, 7, 12.99, 90.93),
-    ('WEB-2024-005', 4, 1, 799.99, 799.99),
-    ('WEB-2024-005', 7, 1, 19.99, 19.99),
-    ('WEB-2024-005', 5, 1, 299.99, 299.99),
-    ('WEB-2024-006', 2, 2, 649.99, 1299.98),
-    ('WEB-2024-006', 3, 1, 229.99, 229.99),
-    ('WEB-2024-006', 6, 5, 29.99, 149.95),
-    ('WEB-2024-007', 3, 1, 229.99, 229.99),
-    ('WEB-2024-008', 8, 50, 7.99, 399.50),
-    ('WEB-2024-008', 10, 49, 12.99, 490.51),
-    ('WEB-2024-009', 7, 2, 19.99, 39.98),
-    ('WEB-2024-009', 9, 2, 24.99, 49.98),
-    ('WEB-2024-010', 2, 1, 649.99, 649.99),
-    ('WEB-2024-010', 6, 1, 29.99, 29.99),
-    ('WEB-2024-010', 10, 8, 12.99, 103.92),
-    ('WEB-2024-010', 7, 1, 19.99, 19.99);
-
--- 评论
-INSERT INTO
-    product_reviews (
-        product_id,
-        user_id,
-        rating,
-        review_text,
-        review_date
-    )
-VALUES
+    -- Order 1
     (
         1,
         1,
-        5,
-        'Great Android phone, amazing display',
-        '2024-01-16'
-    ),
-    (
+        'iPhone 15 Pro',
+        'Electronics',
         1,
-        2,
-        5,
-        'Best Samsung phone so far',
-        '2024-01-17'
+        999.99,
+        999.99
     ),
+    -- Order 2
     (
         2,
+        2,
+        'MacBook Pro M3',
+        'Computers',
+        1,
+        1999.99,
+        1299.98
+    ),
+    -- Order 3
+    (
         3,
-        4,
-        'Excellent tablet for productivity',
-        '2024-01-18'
+        3,
+        'Samsung Galaxy S24',
+        'Electronics',
+        1,
+        899.99,
+        749.97
     ),
-    (4, 4, 5, 'Pixel 8 is fantastic', '2024-01-19'),
-    (3, 5, 4, 'Good wireless earbuds', '2024-01-20'),
-    (5, 1, 5, 'Love the Pixel Watch', '2024-01-21'),
+    -- Order 4
     (
+        4,
+        4,
+        'iPad Air',
+        'Electronics',
         2,
-        2,
-        5,
-        'Samsung Galaxy Tab is perfect',
-        '2024-01-22'
+        599.99,
+        1999.96
     ),
-    (4, 3, 5, 'Excellent performance', '2024-01-23'),
-    (3, 4, 4, 'Great sound quality', '2024-01-24'),
-    (1, 5, 4, 'Very recommended phone', '2024-01-25');
+    -- Order 5
+    (
+        5,
+        5,
+        'Dell XPS 15',
+        'Computers',
+        1,
+        1799.99,
+        1799.99
+    ),
+    (
+        5,
+        6,
+        'Wireless Mouse',
+        'Accessories',
+        1,
+        79.99,
+        79.99
+    ),
+    (
+        5,
+        7,
+        'USB-C Cable',
+        'Accessories',
+        2,
+        19.99,
+        39.99
+    ),
+    -- Order 6
+    (
+        6,
+        8,
+        'AirPods Pro Max',
+        'Electronics',
+        1,
+        599.99,
+        599.99
+    ),
+    -- Order 7
+    (
+        7,
+        9,
+        'Apple Watch Ultra',
+        'Electronics',
+        1,
+        799.99,
+        799.99
+    ),
+    (
+        7,
+        10,
+        'Phone Charger',
+        'Accessories',
+        1,
+        49.99,
+        49.99
+    ),
+    (
+        7,
+        11,
+        'Screen Protector',
+        'Accessories',
+        5,
+        5.99,
+        29.95
+    ),
+    -- Order 8
+    (
+        8,
+        12,
+        'Pixel 8 Pro',
+        'Electronics',
+        1,
+        899.99,
+        899.97
+    ),
+    -- Order 9
+    (
+        9,
+        13,
+        'Sony WH-1000XM5',
+        'Electronics',
+        1,
+        399.99,
+        399.99
+    ),
+    (
+        9,
+        14,
+        'Anker Power Bank',
+        'Electronics',
+        1,
+        49.99,
+        49.99
+    ),
+    (
+        9,
+        15,
+        'Laptop Stand',
+        'Accessories',
+        1,
+        49.99,
+        49.99
+    ),
+    (
+        9,
+        16,
+        'Desk Lamp',
+        'Accessories',
+        1,
+        99.99,
+        99.99
+    ),
+    -- Order 10
+    (
+        10,
+        17,
+        'Samsung Galaxy Buds',
+        'Electronics',
+        1,
+        199.99,
+        199.99
+    ),
+    (
+        10,
+        18,
+        'Case for Phone',
+        'Accessories',
+        3,
+        29.99,
+        89.97
+    ),
+    (
+        10,
+        19,
+        'Office Chair',
+        'Furniture',
+        1,
+        299.99,
+        299.99
+    ),
+    (
+        10,
+        20,
+        'Monitor',
+        'Electronics',
+        1,
+        399.99,
+        399.99
+    );

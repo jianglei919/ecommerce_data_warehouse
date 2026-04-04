@@ -1,612 +1,237 @@
 -- =====================================================
 -- ecommerce_warehouse - 数据仓库数据库
+-- 根据 Ecommerce Data Warehouse Design Report.pdf
 -- =====================================================
 -- 目的:
 --   - 统一存储App和Web的ETL处理结果
---   - 支持多维度分析
---   - 跟踪所有数据同步日志
+--   - 支持OLAP多维度分析
+--   - Star Schema: 维度表 (dim_products) + 事实表 (fact_sales_by_product_time)
 -- =====================================================
--- 统一订单表 (V2新增): 聚合来自App和Web两个业务源的订单数据
-CREATE TABLE
-    unified_orders (
-        unified_order_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '统一订单ID',
-        source VARCHAR(10) NOT NULL COMMENT 'APP 或 WEB',
-        app_order_id INT COMMENT 'App系统订单ID',
-        web_order_no VARCHAR(50) COMMENT 'Web系统订单号',
-        user_id INT NOT NULL COMMENT '用户ID (在各源系统中的ID)',
-        order_date DATE NOT NULL,
-        total_amount DECIMAL(15, 2) NOT NULL,
-        status VARCHAR(20) DEFAULT 'pending' COMMENT 'pending, completed, cancelled, etc.',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uk_source_order (source, app_order_id, web_order_no),
-        KEY idx_source (source),
-        KEY idx_order_date (order_date),
-        KEY idx_user_id (user_id),
-        KEY idx_status (status),
-        KEY idx_source_date (source, order_date)
-    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '统一订单表 (App+Web)';
+
+-- 统一订单表: 聚合来自App和Web两个业务源的订单数据
+CREATE TABLE unified_orders (
+    unified_order_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '统一订单ID',
+    source VARCHAR(10) NOT NULL COMMENT 'APP 或 WEB',
+    app_order_id INT COMMENT 'App系统订单ID',
+    web_order_no VARCHAR(50) COMMENT 'Web系统订单号',
+    user_id INT NOT NULL COMMENT '用户ID',
+    order_date DATE NOT NULL,
+    total_amount DECIMAL(15, 2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_source_order (source, app_order_id, web_order_no),
+    KEY idx_source (source),
+    KEY idx_order_date (order_date),
+    KEY idx_user_id (user_id),
+    KEY idx_status (status),
+    KEY idx_source_date (source, order_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='统一订单表 (App+Web)';
 
 -- 统一订单项详情表
-CREATE TABLE
-    unified_order_items (
-        unified_item_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '统一订单项ID',
-        unified_order_id INT NOT NULL,
-        product_id INT NOT NULL COMMENT '商品ID',
-        product_name VARCHAR(200) NOT NULL COMMENT '商品名称',
-        category VARCHAR(50) COMMENT '商品类别',
-        quantity INT NOT NULL DEFAULT 1,
-        unit_price DECIMAL(10, 2) NOT NULL,
-        subtotal DECIMAL(15, 2) NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (unified_order_id) REFERENCES unified_orders (unified_order_id) ON DELETE CASCADE,
-        KEY idx_unified_order_id (unified_order_id),
-        KEY idx_product_id (product_id),
-        KEY idx_category (category)
-    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '统一订单项详情表';
-
--- 销量分析事实表 (按类别和时间维度)
-CREATE TABLE
-    fact_sales_by_category_time (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        category VARCHAR(50) NOT NULL,
-        year INT NOT NULL,
-        month INT NOT NULL,
-        day INT NOT NULL,
-        total_quantity INT NOT NULL DEFAULT 0,
-        total_sales_amount DECIMAL(15, 2) NOT NULL DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uk_category_time (category, year, month, day),
-        KEY idx_category (category),
-        KEY idx_year_month (year, month),
-        KEY idx_year_month_day (year, month, day)
-    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '按类别和时间的销量汇总';
-
--- 商品评分事实表 (按商品和时间维度)
-CREATE TABLE
-    fact_top_rated_products (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        product_id INT NOT NULL,
-        product_name VARCHAR(200) NOT NULL,
-        category VARCHAR(50),
-        year INT NOT NULL,
-        month INT NOT NULL,
-        day INT NOT NULL,
-        avg_rating DECIMAL(3, 2),
-        review_count INT NOT NULL DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY uk_product_time (product_id, year, month, day),
-        KEY idx_category (category),
-        KEY idx_avg_rating (avg_rating DESC),
-        KEY idx_year_month (year, month),
-        KEY idx_product_id (product_id)
-    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '按商品和时间的评分汇总';
-
--- 同步日志表 (用于监控和调试)
-CREATE TABLE
-    sync_log (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        event_type VARCHAR(50) COMMENT 'ORDER_CREATED, ORDER_UPDATED, etc.',
-        source VARCHAR(20) COMMENT 'APP or WEB',
-        order_id VARCHAR(50),
-        status VARCHAR(30) COMMENT 'SUCCESS, VALIDATION_FAILED, ERROR',
-        error_message TEXT,
-        sync_time DATETIME,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        KEY idx_source_time (source, sync_time),
-        KEY idx_status (status),
-        KEY idx_event_type (event_type),
-        KEY idx_sync_time (sync_time)
-    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'ETL同步日志' ROW_FORMAT = COMPRESSED;
+CREATE TABLE unified_order_items (
+    unified_item_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '统一订单项ID',
+    unified_order_id INT NOT NULL,
+    product_id INT NOT NULL COMMENT '商品ID',
+    product_name VARCHAR(200) NOT NULL COMMENT '商品名称',
+    category VARCHAR(50) COMMENT '商品类别',
+    quantity INT NOT NULL DEFAULT 1,
+    unit_price DECIMAL(10, 2) NOT NULL,
+    subtotal DECIMAL(15, 2) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (unified_order_id) REFERENCES unified_orders (unified_order_id) ON DELETE CASCADE,
+    KEY idx_unified_order_id (unified_order_id),
+    KEY idx_product_id (product_id),
+    KEY idx_category (category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='统一订单项详情表';
 
 -- =====================================================
--- 示例数据 (初始化仓库)
+-- Star Schema 维度表和事实表
 -- =====================================================
--- 统一订单表 (V2: App + Web 聚合)
-INSERT INTO
-    unified_orders (
-        source,
-        app_order_id,
-        web_order_no,
-        user_id,
-        order_date,
-        total_amount,
-        status
-    )
-VALUES
-    -- App源订单 (11-20)
-    (
-        'APP',
-        1001,
-        NULL,
-        1,
-        '2024-01-15',
-        899.99,
-        'completed'
-    ),
-    (
-        'APP',
-        1002,
-        NULL,
-        2,
-        '2024-01-16',
-        599.99,
-        'completed'
-    ),
-    (
-        'APP',
-        1003,
-        NULL,
-        3,
-        '2024-01-17',
-        1899.97,
-        'completed'
-    ),
-    (
-        'APP',
-        1004,
-        NULL,
-        4,
-        '2024-01-18',
-        799.99,
-        'completed'
-    ),
-    (
-        'APP',
-        1005,
-        NULL,
-        5,
-        '2024-01-19',
-        1699.97,
-        'completed'
-    ),
-    -- Web源订单 (WEB-2024-001到010)
-    (
-        'WEB',
-        NULL,
-        'WEB-2024-001',
-        1,
-        '2024-01-15',
-        429.90,
-        'completed'
-    ),
-    (
-        'WEB',
-        NULL,
-        'WEB-2024-002',
-        2,
-        '2024-01-16',
-        899.99,
-        'completed'
-    ),
-    (
-        'WEB',
-        NULL,
-        'WEB-2024-003',
-        3,
-        '2024-01-17',
-        1999.97,
-        'completed'
-    ),
-    (
-        'WEB',
-        NULL,
-        'WEB-2024-004',
-        4,
-        '2024-01-18',
-        319.90,
-        'completed'
-    ),
-    (
-        'WEB',
-        NULL,
-        'WEB-2024-005',
-        5,
-        '2024-01-19',
-        1209.88,
-        'completed'
-    );
 
--- 统一订单项 (APP订单项汇总)
-INSERT INTO
-    unified_order_items (
-        unified_order_id,
-        product_id,
-        product_name,
-        category,
-        quantity,
-        unit_price,
-        subtotal
-    )
-VALUES
-    (
-        1,
-        1,
-        'iPhone 15 Pro',
-        'Electronics',
-        1,
-        999.99,
-        999.99
-    ),
-    (
-        2,
-        2,
-        'MacBook Pro M3',
-        'Electronics',
-        1,
-        1999.99,
-        599.99
-    ),
-    (
-        3,
-        1,
-        'iPhone 15 Pro',
-        'Electronics',
-        1,
-        999.99,
-        999.99
-    ),
-    (3, 3, 'AirPods Pro', 'Audio', 1, 249.99, 249.99),
-    (
-        4,
-        2,
-        'MacBook Pro M3',
-        'Electronics',
-        1,
-        1999.99,
-        799.99
-    ),
-    (
-        5,
-        1,
-        'iPhone 15 Pro',
-        'Electronics',
-        1,
-        999.99,
-        999.99
-    ),
-    (
-        5,
-        4,
-        'iPad Air',
-        'Electronics',
-        1,
-        599.99,
-        599.99
-    ),
-    -- WEB订单项汇总
-    (
-        6,
-        5,
-        'Samsung Galaxy S24',
-        'Electronics',
-        1,
-        899.99,
-        899.99
-    ),
-    (
-        7,
-        6,
-        'Samsung Galaxy Buds Pro',
-        'Audio',
-        1,
-        229.99,
-        229.99
-    ),
-    (
-        8,
-        7,
-        'Samsung Galaxy Tab S9',
-        'Electronics',
-        1,
-        799.99,
-        799.99
-    ),
-    (
-        8,
-        8,
-        'Wireless Charger',
-        'Accessories',
-        1,
-        49.99,
-        49.99
-    ),
-    (
-        9,
-        5,
-        'Samsung Galaxy S24',
-        'Electronics',
-        1,
-        899.99,
-        899.99
-    ),
-    (
-        10,
-        7,
-        'Samsung Galaxy Tab S9',
-        'Electronics',
-        1,
-        799.99,
-        799.99
-    ),
-    (
-        10,
-        9,
-        'Screen Protector',
-        'Accessories',
-        1,
-        19.99,
-        19.99
-    );
+-- 商品维度表 (Surrogate Key: product_key)
+CREATE TABLE dim_products (
+    product_key INT PRIMARY KEY AUTO_INCREMENT COMMENT '维度代理键 (Business Key: product_id)',
+    product_id INT NOT NULL COMMENT '业务键 - 商品ID',
+    product_name VARCHAR(200) NOT NULL COMMENT '商品名称',
+    category VARCHAR(50) NOT NULL COMMENT '商品类别',
+    brand VARCHAR(50) COMMENT '品牌',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_product_id (product_id),
+    KEY idx_category (category),
+    KEY idx_brand (brand)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品维度表 (Surrogate Key)';
 
--- 销量数据汇总 (来自App + Web的合并)
-INSERT INTO
-    fact_sales_by_category_time (
-        category,
-        year,
-        month,
-        day,
-        total_quantity,
-        total_sales_amount
-    )
-VALUES
-    -- 2024-01-15
-    ('Electronics', 2024, 1, 15, 2, 1899.98),
-    ('Accessories', 2024, 1, 15, 10, 319.90),
-    -- 2024-01-16
-    ('Electronics', 2024, 1, 16, 1, 599.99),
-    ('Audio', 2024, 1, 16, 1, 229.99),
-    -- 2024-01-17
-    ('Electronics', 2024, 1, 17, 3, 3899.94),
-    ('Accessories', 2024, 1, 17, 18, 159.90),
-    -- 2024-01-18
-    ('Electronics', 2024, 1, 18, 1, 799.99),
-    ('Accessories', 2024, 1, 18, 7, 90.93),
-    -- 2024-01-19
-    ('Electronics', 2024, 1, 19, 2, 1699.97),
-    ('Audio', 2024, 1, 19, 1, 229.99),
-    ('Wearables', 2024, 1, 19, 1, 299.99),
-    -- 2024-01-20
-    ('Electronics', 2024, 1, 20, 3, 3699.95),
-    ('Audio', 2024, 1, 20, 1, 229.99),
-    ('Accessories', 2024, 1, 20, 7, 179.90),
-    -- 2024-01-21
-    ('Audio', 2024, 1, 21, 2, 579.98),
-    -- 2024-01-22
-    ('Accessories', 2024, 1, 22, 100, 999.90),
-    -- 2024-01-23
-    ('Accessories', 2024, 1, 23, 10, 149.90),
-    -- 2024-01-24
-    ('Electronics', 2024, 1, 24, 2, 1399.97),
-    ('Accessories', 2024, 1, 24, 10, 199.90);
-
--- 商品评分汇总 (来自App + Web的合并)
-INSERT INTO
-    fact_top_rated_products (
-        product_id,
-        product_name,
-        category,
-        year,
-        month,
-        day,
-        avg_rating,
-        review_count
-    )
-VALUES
-    (
-        1,
-        'iPhone 15 Pro / Samsung Galaxy S24',
-        'Electronics',
-        2024,
-        1,
-        16,
-        5.00,
-        2
-    ),
-    (
-        4,
-        'iPad Air / Samsung Galaxy Tab S9',
-        'Electronics',
-        2024,
-        1,
-        18,
-        4.50,
-        2
-    ),
-    (
-        2,
-        'MacBook Pro M3 / Samsung Galaxy Tab S9',
-        'Electronics',
-        2024,
-        1,
-        19,
-        5.00,
-        2
-    ),
-    (
-        3,
-        'AirPods Pro / Samsung Galaxy Buds Pro',
-        'Audio',
-        2024,
-        1,
-        20,
-        4.50,
-        2
-    ),
-    (
-        5,
-        'Apple Watch / Google Pixel Watch',
-        'Wearables',
-        2024,
-        1,
-        21,
-        4.50,
-        2
-    ),
-    (
-        4,
-        'iPad Air / Google Pixel 8',
-        'Electronics',
-        2024,
-        1,
-        22,
-        4.50,
-        2
-    ),
-    (
-        7,
-        'Wireless Charger / Case Cover',
-        'Accessories',
-        2024,
-        1,
-        23,
-        4.50,
-        2
-    ),
-    (3, 'AirPods Pro', 'Audio', 2024, 1, 24, 5.00, 1),
-    (
-        1,
-        'iPhone 15 Pro',
-        'Electronics',
-        2024,
-        1,
-        25,
-        4.50,
-        2
-    );
+-- 销售事实表 (按商品+时间维度的聚合)
+-- OLAP查询通过这个表与维度表JOIN获得多维分析结果
+CREATE TABLE fact_sales_by_product_time (
+    fact_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '事实表ID',
+    product_key INT NOT NULL COMMENT 'FK: dim_products.product_key',
+    year INT NOT NULL COMMENT '年份',
+    month INT NOT NULL COMMENT '月份',
+    day INT NOT NULL COMMENT '日期',
+    total_quantity INT NOT NULL COMMENT '销售数量',
+    total_sales_amount DECIMAL(15, 2) NOT NULL COMMENT '销售金额',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_key) REFERENCES dim_products (product_key),
+    UNIQUE KEY uk_product_time (product_key, year, month, day),
+    KEY idx_product_key (product_key),
+    KEY idx_year_month_day (year, month, day),
+    KEY idx_date_range (year, month)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='销售事实表 (按商品+时间维度)';
 
 -- =====================================================
--- 索引优化和统计
+-- 样本数据初始化
 -- =====================================================
--- 为热查询添加覆盖索引
-ALTER TABLE fact_sales_by_category_time ADD INDEX idx_category_year_month_sales (category, year, month, total_sales_amount);
 
-ALTER TABLE fact_top_rated_products ADD INDEX idx_category_product_rating (category, product_id, avg_rating DESC);
+-- 插入维度表数据 (20种商品)
+INSERT INTO dim_products (product_id, product_name, category, brand) VALUES
+(1, 'iPhone 15 Pro', 'Electronics', 'Apple'),
+(2, 'MacBook Pro M3', 'Computers', 'Apple'),
+(3, 'Samsung Galaxy S24', 'Electronics', 'Samsung'),
+(4, 'iPad Air', 'Electronics', 'Apple'),
+(5, 'Dell XPS 15', 'Computers', 'Dell'),
+(6, 'Wireless Mouse', 'Accessories', 'Logitech'),
+(7, 'USB-C Cable', 'Accessories', 'Generic'),
+(8, 'AirPods Pro Max', 'Electronics', 'Apple'),
+(9, 'Apple Watch Ultra', 'Electronics', 'Apple'),
+(10, 'Phone Charger', 'Accessories', 'Generic'),
+(11, 'Screen Protector', 'Accessories', 'Generic'),
+(12, 'Pixel 8 Pro', 'Electronics', 'Google'),
+(13, 'Sony WH-1000XM5', 'Electronics', 'Sony'),
+(14, 'Anker Power Bank', 'Electronics', 'Anker'),
+(15, 'Laptop Stand', 'Accessories', 'Generic'),
+(16, 'Desk Lamp', 'Accessories', 'Generic'),
+(17, 'Samsung Galaxy Buds', 'Electronics', 'Samsung'),
+(18, 'Case for Phone', 'Accessories', 'Generic'),
+(19, 'Office Chair', 'Furniture', 'IKEA'),
+(20, 'Monitor', 'Electronics', 'LG');
 
--- =====================================================
--- 视图: 用于简化查询
--- =====================================================
--- 销量排行视图
-CREATE VIEW
-    v_sales_ranking AS
-SELECT
-    category,
-    year,
-    month,
-    day,
-    total_quantity,
-    total_sales_amount,
-    RANK() OVER (
-        PARTITION BY
-            year,
-            month
-        ORDER BY
-            total_sales_amount DESC
-    ) AS sales_rank
-FROM
-    fact_sales_by_category_time;
+-- 插入聚合订单数据
+INSERT INTO unified_orders (source, app_order_id, user_id, order_date, total_amount, status) VALUES
+('APP', 1001, 100, '2024-01-15', 2899.97, 'completed'),
+('APP', 1002, 101, '2024-01-16', 599.99, 'completed'),
+('APP', 1003, 102, '2024-01-17', 4099.93, 'completed'),
+('APP', 1004, 103, '2024-01-18', 1599.98, 'completed'),
+('APP', 1005, 104, '2024-01-19', 1599.98, 'completed'),
+('WEB', NULL, 105, '2024-02-01', 2799.97, 'completed'),
+('WEB', NULL, 106, '2024-02-02', 3299.96, 'completed'),
+('WEB', NULL, 107, '2024-02-03', 1649.96, 'completed'),
+('WEB', NULL, 108, '2024-02-04', 2799.94, 'completed'),
+('WEB', NULL, 109, '2024-02-05', 3699.93, 'completed'),
+('WEB', NULL, 110, '2024-02-06', 1199.97, 'completed'),
+('WEB', NULL, 111, '2024-02-07', 1349.94, 'completed'),
+('WEB', NULL, 112, '2024-02-08', 1299.95, 'completed'),
+('WEB', NULL, 113, '2024-02-09', 2249.97, 'completed'),
+('WEB', NULL, 114, '2024-02-10', 3799.92, 'completed');
 
--- 评分排行视图
-CREATE VIEW
-    v_product_ratings AS
-SELECT
-    category,
-    product_name,
-    year,
-    month,
-    day,
-    avg_rating,
-    review_count,
-    RANK() OVER (
-        PARTITION BY
-            year,
-            month
-        ORDER BY
-            avg_rating DESC
-    ) AS rating_rank
-FROM
-    fact_top_rated_products
-WHERE
-    avg_rating IS NOT NULL;
+-- 获取最后插入的订单ID范围，供下面使用
+SET @last_order_id = LAST_INSERT_ID();
 
--- =====================================================
--- 存储过程: 用于聚合计算
--- =====================================================
--- 清空并重新计算销量汇总 (用于测试)
-DELIMITER / / CREATE PROCEDURE sp_refresh_sales_facts () BEGIN
-TRUNCATE TABLE fact_sales_by_category_time;
-
--- 实际应用中会从源数据库读取并聚合
-INSERT INTO
-    fact_sales_by_category_time (
-        category,
-        year,
-        month,
-        day,
-        total_quantity,
-        total_sales_amount
-    )
-SELECT
-    'Electronics' AS category,
-    2024 AS year,
-    1 AS month,
-    15 AS day,
-    5 AS total_quantity,
-    2499.97 AS total_sales_amount;
-
-END / / DELIMITER;
-
--- 获取指定日期范围的销量统计
-DELIMITER / / CREATE PROCEDURE sp_get_sales_by_date_range (IN p_start_date DATE, IN p_end_date DATE) BEGIN
-SELECT
-    category,
-    SUM(total_quantity) AS total_qty,
-    SUM(total_sales_amount) AS total_amount,
-    DATE (CONCAT_WS ('-', year, month, day)) AS date_d
-FROM
-    fact_sales_by_category_time
-WHERE
-    DATE (CONCAT_WS ('-', year, month, day)) BETWEEN p_start_date AND p_end_date
-GROUP BY
-    category,
-    DATE (CONCAT_WS ('-', year, month, day))
-ORDER BY
-    date_d DESC,
-    total_amount DESC;
-
-END / / DELIMITER;
-
--- 获取Top N评高商品
-DELIMITER / / CREATE PROCEDURE sp_get_top_rated_products (IN p_limit INT) BEGIN
-SELECT
+-- 插入订单项数据 (25条订单项, 来自上面插入的15个订单)
+INSERT INTO unified_order_items (unified_order_id, product_id, product_name, category, quantity, unit_price, subtotal) 
+SELECT 
+    unified_order_id,
     product_id,
     product_name,
     category,
-    AVG(avg_rating) AS avg_rating,
-    SUM(review_count) AS total_reviews
-FROM
-    fact_top_rated_products
-WHERE
-    avg_rating IS NOT NULL
-GROUP BY
-    product_id,
-    product_name,
-    category
-ORDER BY
-    avg_rating DESC,
-    total_reviews DESC
-LIMIT
-    p_limit;
+    quantity,
+    unit_price,
+    subtotal
+FROM (
+    SELECT @last_order_id - 14 AS unified_order_id, 1 AS product_id, 'iPhone 15 Pro' AS product_name, 'Electronics' AS category, 1 AS quantity, 999.99 AS unit_price, 999.99 AS subtotal
+    UNION ALL SELECT @last_order_id - 14, 8, 'AirPods Pro Max', 'Electronics', 1, 599.99, 599.99
+    UNION ALL SELECT @last_order_id - 13, 2, 'MacBook Pro M3', 'Computers', 1, 1999.99, 1299.99
+    UNION ALL SELECT @last_order_id - 12, 1, 'iPhone 15 Pro', 'Electronics', 1, 999.99, 999.99
+    UNION ALL SELECT @last_order_id - 12, 4, 'iPad Air', 'Electronics', 1, 599.99, 599.99
+    UNION ALL SELECT @last_order_id - 11, 1, 'iPhone 15 Pro', 'Electronics', 1, 999.99, 999.99
+    UNION ALL SELECT @last_order_id - 10, 2, 'MacBook Pro M3', 'Computers', 1, 1999.99, 1299.98
+    UNION ALL SELECT @last_order_id - 9, 3, 'Samsung Galaxy S24', 'Electronics', 1, 899.99, 749.97
+    UNION ALL SELECT @last_order_id - 8, 4, 'iPad Air', 'Electronics', 2, 599.99, 1199.98
+    UNION ALL SELECT @last_order_id - 7, 5, 'Dell XPS 15', 'Computers', 1, 1799.99, 1799.99
+    UNION ALL SELECT @last_order_id - 7, 6, 'Wireless Mouse', 'Accessories', 1, 79.99, 79.99
+    UNION ALL SELECT @last_order_id - 7, 7, 'USB-C Cable', 'Accessories', 2, 19.99, 39.99
+    UNION ALL SELECT @last_order_id - 6, 8, 'AirPods Pro Max', 'Electronics', 1, 599.99, 599.99
+    UNION ALL SELECT @last_order_id - 5, 9, 'Apple Watch Ultra', 'Electronics', 1, 799.99, 799.99
+    UNION ALL SELECT @last_order_id - 5, 10, 'Phone Charger', 'Accessories', 1, 49.99, 49.99
+    UNION ALL SELECT @last_order_id - 5, 11, 'Screen Protector', 'Accessories', 5, 5.99, 29.95
+    UNION ALL SELECT @last_order_id - 4, 12, 'Pixel 8 Pro', 'Electronics', 1, 899.99, 899.97
+    UNION ALL SELECT @last_order_id - 3, 13, 'Sony WH-1000XM5', 'Electronics', 1, 399.99, 399.99
+    UNION ALL SELECT @last_order_id - 3, 14, 'Anker Power Bank', 'Electronics', 1, 49.99, 49.99
+    UNION ALL SELECT @last_order_id - 3, 15, 'Laptop Stand', 'Accessories', 1, 49.99, 49.99
+    UNION ALL SELECT @last_order_id - 3, 16, 'Desk Lamp', 'Accessories', 1, 99.99, 99.99
+    UNION ALL SELECT @last_order_id - 2, 17, 'Samsung Galaxy Buds', 'Electronics', 1, 199.99, 199.99
+    UNION ALL SELECT @last_order_id - 2, 18, 'Case for Phone', 'Accessories', 3, 29.99, 89.97
+    UNION ALL SELECT @last_order_id - 2, 19, 'Office Chair', 'Furniture', 1, 299.99, 299.99
+    UNION ALL SELECT @last_order_id - 2, 20, 'Monitor', 'Electronics', 1, 399.99, 399.99
+) temp;
 
-END / / DELIMITER;
+-- 自动生成事实表数据 (从聚合订单项 + 维度表)
+INSERT INTO fact_sales_by_product_time (product_key, year, month, day, total_quantity, total_sales_amount) 
+SELECT 
+    dp.product_key, 
+    YEAR(uo.order_date) as year, 
+    MONTH(uo.order_date) as month, 
+    DAY(uo.order_date) as day,
+    SUM(uoi.quantity) as total_quantity, 
+    SUM(uoi.subtotal) as total_sales_amount
+FROM unified_order_items uoi
+JOIN unified_orders uo ON uoi.unified_order_id = uo.unified_order_id
+JOIN dim_products dp ON uoi.product_id = dp.product_id
+GROUP BY dp.product_key, YEAR(uo.order_date), MONTH(uo.order_date), DAY(uo.order_date)
+ON DUPLICATE KEY UPDATE 
+    total_quantity = VALUES(total_quantity),
+    total_sales_amount = VALUES(total_sales_amount);
 
 -- =====================================================
--- 备注
+-- OLAP 查询示例 (按照PDF Section 5)
 -- =====================================================
--- 这个数据仓库设计遵循星形模式 (Star Schema):
--- - 中心: 两个事实表 (sales, ratings)
--- - 维度: category, year, month, day, product_id 等
--- - 特点: 快速查询, 易于聚合, 支持多维分析
+
+-- 查询1: Rollup - 按类别和时间聚合销售 (按月汇总)
+-- SELECT DISTINCT d.category, f.year, f.month,
+--        SUM(f.total_quantity) AS monthly_qty,
+--        SUM(f.total_sales_amount) AS monthly_sales
+-- FROM fact_sales_by_product_time f
+-- JOIN dim_products d ON f.product_key = d.product_key
+-- GROUP BY d.category, f.year, f.month
+-- ORDER BY f.year, f.month, d.category;
+
+-- 查询2: Drilldown - 按商品详细分析某类别的日度销售
+-- SELECT d.product_id, d.product_name, d.category, f.year, f.month, f.day,
+--        f.total_quantity, f.total_sales_amount
+-- FROM fact_sales_by_product_time f
+-- JOIN dim_products d ON f.product_key = d.product_key
+-- WHERE d.category = 'Electronics' AND f.year = 2024 AND f.month = 1
+-- ORDER BY f.year, f.month, f.day, d.product_name;
+
+-- 查询3: Slice - 单个维度的切片分析 (按类别筛选时间趋势)
+-- SELECT f.year, f.month, f.day, f.total_sales_amount
+-- FROM fact_sales_by_product_time f
+-- JOIN dim_products d ON f.product_key = d.product_key
+-- WHERE d.category = 'Electronics'
+-- ORDER BY f.year, f.month, f.day;
+
+-- 查询4: Dice - 多维度的多值筛选分析
+-- SELECT d.category, f.year, f.month,
+--        SUM(f.total_quantity) AS qty,
+--        SUM(f.total_sales_amount) AS sales
+-- FROM fact_sales_by_product_time f
+-- JOIN dim_products d ON f.product_key = d.product_key
+-- WHERE f.year = 2024 AND f.month IN (1, 2)
+--   AND d.category IN ('Electronics', 'Computers', 'Accessories')
+-- GROUP BY d.category, f.year, f.month
+-- ORDER BY f.month, d.category;
+
+-- 查询5: Pivot - 交叉维度分析 (以行和列展现多维度数据)
+-- SELECT d.category,
+--        SUM(CASE WHEN f.month = 1 THEN f.total_sales_amount ELSE 0 END) AS Jan_Sales,
+--        SUM(CASE WHEN f.month = 2 THEN f.total_sales_amount ELSE 0 END) AS Feb_Sales,
+--        SUM(f.total_sales_amount) AS Total_Sales
+-- FROM fact_sales_by_product_time f
+-- JOIN dim_products d ON f.product_key = d.product_key
+-- WHERE f.year = 2024
+-- GROUP BY d.category
+-- ORDER BY Total_Sales DESC;
