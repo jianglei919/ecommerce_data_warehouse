@@ -182,6 +182,56 @@ VALUES
         'completed'
     ),
     (
+        16,
+        'APP',
+        1006,
+        NULL,
+        105,
+        '2024-01-20',
+        1569.95,
+        'completed'
+    ),
+    (
+        17,
+        'APP',
+        1007,
+        NULL,
+        102,
+        '2024-01-21',
+        249.99,
+        'completed'
+    ),
+    (
+        18,
+        'APP',
+        1008,
+        NULL,
+        103,
+        '2024-01-22',
+        809.96,
+        'completed'
+    ),
+    (
+        19,
+        'APP',
+        1009,
+        NULL,
+        100,
+        '2024-01-23',
+        99.97,
+        'completed'
+    ),
+    (
+        20,
+        'APP',
+        1010,
+        NULL,
+        104,
+        '2024-01-24',
+        649.98,
+        'completed'
+    ),
+    (
         6,
         'WEB',
         NULL,
@@ -518,6 +568,96 @@ VALUES
         1,
         399.99,
         399.99
+    ),
+    (
+        16,
+        3,
+        'Samsung Galaxy S24',
+        'Electronics',
+        1,
+        899.99,
+        899.99
+    ),
+    (
+        16,
+        6,
+        'Wireless Mouse',
+        'Accessories',
+        1,
+        79.99,
+        79.99
+    ),
+    (
+        16,
+        7,
+        'USB-C Cable',
+        'Accessories',
+        2,
+        19.99,
+        39.99
+    ),
+    (
+        17,
+        10,
+        'Phone Charger',
+        'Accessories',
+        1,
+        49.99,
+        49.99
+    ),
+    (
+        17,
+        11,
+        'Screen Protector',
+        'Accessories',
+        4,
+        5.99,
+        23.99
+    ),
+    (
+        18,
+        5,
+        'Dell XPS 15',
+        'Computers',
+        1,
+        1799.99,
+        1799.99
+    ),
+    (
+        18,
+        9,
+        'Apple Watch Ultra',
+        'Electronics',
+        1,
+        799.99,
+        799.99
+    ),
+    (
+        19,
+        12,
+        'Pixel 8 Pro',
+        'Electronics',
+        1,
+        899.99,
+        899.99
+    ),
+    (
+        20,
+        2,
+        'MacBook Pro M3',
+        'Computers',
+        1,
+        1999.99,
+        1299.99
+    ),
+    (
+        20,
+        14,
+        'Anker Power Bank',
+        'Electronics',
+        1,
+        49.99,
+        49.99
     );
 
 -- 自动生成事实表数据 (从聚合订单项 + 维度表)
