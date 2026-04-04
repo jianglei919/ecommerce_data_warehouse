@@ -134,6 +134,7 @@
                 placeholder="Select Categories"
                 allow-clear
                 :max-tag-count="2"
+                style="width: 100%"
                 @change="fetchDiceData"
               >
                 <a-select-option key="Electronics" value="Electronics">Electronics</a-select-option>
@@ -160,6 +161,7 @@
                 placeholder="Select Months"
                 allow-clear
                 :max-tag-count="2"
+                style="width: 100%"
                 @change="fetchDiceData"
               >
                 <a-select-option key="1" value="1">January</a-select-option>
