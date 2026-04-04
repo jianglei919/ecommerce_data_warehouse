@@ -102,10 +102,10 @@ public class AnalyticsController {
         try {
             String sql = "SELECT " +
                     "COUNT(DISTINCT uo.unified_order_id) as total_orders, " +
-                    "SUM(uoi.quantity) as total_quantity, " +
-                    "SUM(uoi.subtotal) as total_sales_amount " +
-                    "FROM unified_order_items uoi " +
-                    "INNER JOIN unified_orders uo ON uoi.unified_order_id = uo.unified_order_id " +
+                    "COALESCE(SUM(uoi.quantity), 0) as total_quantity, " +
+                    "COALESCE(SUM(uoi.subtotal), 0) as total_sales_amount " +
+                    "FROM unified_orders uo " +
+                    "LEFT JOIN unified_order_items uoi ON uo.unified_order_id = uoi.unified_order_id " +
                     "WHERE 1=1";
 
             if (startDate != null && !startDate.isEmpty()) {
