@@ -101,27 +101,63 @@ const initSalesChart = () => {
 
   const myChart = echarts.init(chartDom)
 
-  const option = {
+  // 显示加载状态
+  const loadingOption = {
     tooltip: { trigger: 'axis' },
     grid: { left: '3%', right: '4%', bottom: '3%', top: '10%', containLabel: true },
-    xAxis: {
-      type: 'category',
-      data: ['Jan 15', 'Jan 16', 'Jan 17', 'Jan 18', 'Jan 19', 'Jan 20', 'Jan 21'],
-    },
+    xAxis: { type: 'category', data: [] },
     yAxis: { type: 'value' },
-    series: [
-      {
-        data: [12000, 15200, 18900, 16500, 21000, 19800, 22500],
-        type: 'line',
-        smooth: true,
-        itemStyle: { color: '#667eea' },
-        areaStyle: { color: 'rgba(102, 126, 234, 0.1)' },
-      },
-    ],
+    series: [{ data: [], type: 'line', smooth: true }],
   }
+  myChart.setOption(loadingOption)
 
-  myChart.setOption(option)
+  // 从API加载真实数据
+  loadSalesData()
   window.addEventListener('resize', () => myChart.resize())
+}
+
+// 从API加载销售数据
+const loadSalesData = async () => {
+  try {
+    const endDate = dayjs().format('YYYY-MM-DD')
+    const startDate = dayjs().subtract(6, 'day').format('YYYY-MM-DD')
+    
+    const response = await analyticsApi.getSalesByCategory(startDate, endDate)
+    
+    if (response && response.data && response.data.length > 0) {
+      const chartDom = salesChartRef.value
+      const myChart = echarts.init(chartDom)
+      
+      // 按日期分组统计
+      const dateMap = new Map()
+      response.data.forEach((item: any) => {
+        const key = `${item.order_date || dayjs().format('YYYY-MM-DD')}`
+        dateMap.set(key, (dateMap.get(key) || 0) + (item.total_amount || 0))
+      })
+      
+      const dates = Array.from(dateMap.keys()).sort()
+      const amounts = dates.map(date => dateMap.get(date))
+      
+      const option = {
+        tooltip: { trigger: 'axis' },
+        grid: { left: '3%', right: '4%', bottom: '3%', top: '10%', containLabel: true },
+        xAxis: { type: 'category', data: dates },
+        yAxis: { type: 'value' },
+        series: [
+          {
+            data: amounts,
+            type: 'line',
+            smooth: true,
+            itemStyle: { color: '#667eea' },
+            areaStyle: { color: 'rgba(102, 126, 234, 0.1)' },
+          },
+        ],
+      }
+      myChart.setOption(option)
+    }
+  } catch (error) {
+    console.error('Failed to load sales data:', error)
+  }
 }
 
 // 初始化分类销售图
@@ -131,33 +167,64 @@ const initCategoryChart = () => {
 
   const myChart = echarts.init(chartDom)
 
-  const option = {
+  // 显示加载状态
+  const loadingOption = {
     tooltip: { trigger: 'item' },
     legend: { orient: 'vertical', left: 'left' },
-    series: [
-      {
-        name: 'Sales',
-        type: 'pie',
-        radius: '50%',
-        data: [
-          { value: 35000, name: 'Electronics' },
-          { value: 25000, name: 'Wearables' },
-          { value: 20000, name: 'Audio' },
-          { value: 15000, name: 'Accessories' },
-        ],
-        emphasis: {
-          itemStyle: {
-            shadowBlur: 10,
-            shadowOffsetX: 0,
-            shadowColor: 'rgba(0, 0, 0, 0.5)',
-          },
-        },
-      },
-    ],
+    series: [{ name: 'Sales', type: 'pie', radius: '50%', data: [] }],
   }
+  myChart.setOption(loadingOption)
 
-  myChart.setOption(option)
+  // 从API加载真实数据
+  loadCategoryData()
   window.addEventListener('resize', () => myChart.resize())
+}
+
+// 从API加载分类销售数据
+const loadCategoryData = async () => {
+  try {
+    const response = await analyticsApi.getSalesByCategory()
+    
+    if (response && response.data && response.data.length > 0) {
+      const chartDom = categoryChartRef.value
+      const myChart = echarts.init(chartDom)
+      
+      // 按分类分组统计
+      const categoryMap = new Map()
+      response.data.forEach((item: any) => {
+        const category = item.category || 'Other'
+        categoryMap.set(category, (categoryMap.get(category) || 0) + (item.total_amount || 0))
+      })
+      
+      const pieData = Array.from(categoryMap.entries()).map(([name, value]) => ({
+        name,
+        value: Math.round(value),
+      }))
+      
+      const option = {
+        tooltip: { trigger: 'item' },
+        legend: { orient: 'vertical', left: 'left' },
+        series: [
+          {
+            name: 'Sales',
+            type: 'pie',
+            radius: '50%',
+            data: pieData,
+            emphasis: {
+              itemStyle: {
+                shadowBlur: 10,
+                shadowOffsetX: 0,
+                shadowColor: 'rgba(0, 0, 0, 0.5)',
+              },
+            },
+          },
+        ],
+      }
+      myChart.setOption(option)
+    }
+  } catch (error) {
+    console.error('Failed to load category data:', error)
+  }
 }
 
 // 发送测试订单

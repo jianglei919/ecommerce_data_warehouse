@@ -44,36 +44,7 @@ import dayjs, { Dayjs } from 'dayjs'
 
 const analyticsChartRef = ref()
 const dateRange = ref<[Dayjs, Dayjs] | null>(null)
-const salesData = ref([
-  {
-    key: '1',
-    category: 'Electronics',
-    sales: '35,000',
-    percentage: 35,
-    orders: 450,
-  },
-  {
-    key: '2',
-    category: 'Wearables',
-    sales: '25,000',
-    percentage: 25,
-    orders: 320,
-  },
-  {
-    key: '3',
-    category: 'Audio',
-    sales: '20,000',
-    percentage: 20,
-    orders: 280,
-  },
-  {
-    key: '4',
-    category: 'Accessories',
-    sales: '15,000',
-    percentage: 15,
-    orders: 200,
-  },
-])
+const salesData = ref<any[]>([]) // 初始化为空，从API加载真实数据
 
 const columns = [
   { title: 'Category', dataIndex: 'category', key: 'category' },

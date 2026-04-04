@@ -45,52 +45,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import * as echarts from 'echarts'
+import { message } from 'ant-design-vue'
 import { analyticsApi } from '../api/analytics'
 
 const productsChartRef = ref()
 const limit = ref(10)
-const topProducts = ref([
-  {
-    key: '1',
-    productId: 'P001',
-    name: 'Wireless Earbuds Pro',
-    category: 'Audio',
-    rating: 4.8,
-    reviews: 245,
-    status: 'Active',
-    sales: 1200,
-  },
-  {
-    key: '2',
-    productId: 'P002',
-    name: 'Smart Watch X',
-    category: 'Wearables',
-    rating: 4.6,
-    reviews: 189,
-    status: 'Active',
-    sales: 950,
-  },
-  {
-    key: '3',
-    productId: 'P003',
-    name: '4K Webcam',
-    category: 'Electronics',
-    rating: 4.5,
-    reviews: 156,
-    status: 'Active',
-    sales: 780,
-  },
-  {
-    key: '4',
-    productId: 'P004',
-    name: 'USB-C Hub',
-    category: 'Accessories',
-    rating: 4.3,
-    reviews: 134,
-    status: 'Active',
-    sales: 650,
-  },
-])
+const barColors = ['#667eea', '#52c41a', '#faad14', '#f5222d', '#13c2c2']
+const topProducts = ref<any[]>([])
 
 const columns = [
   { title: 'Product', dataIndex: 'name', key: 'name' },
@@ -103,26 +64,42 @@ const columns = [
 
 const pagination = { pageSize: 10 }
 
-const initChart = () => {
+const initChart = (productNames: string[] = [], ratings: number[] = []) => {
   const chartDom = productsChartRef.value
   if (!chartDom) return
 
   const myChart = echarts.init(chartDom)
 
   const option = {
-    tooltip: { trigger: 'axis' },
+    tooltip: { 
+      trigger: 'axis',
+      formatter: (params: any) => {
+        let result = params[0].axisValue + '<br/>'
+        params.forEach((param: any) => {
+          result += `${param.marker} ${param.seriesName}: ${param.value.toFixed(1)}<br/>`
+        })
+        return result
+      }
+    },
     grid: { left: '3%', right: '4%', bottom: '3%', top: '10%', containLabel: true },
     xAxis: {
       type: 'category',
-      data: ['Product A', 'Product B', 'Product C', 'Product D', 'Product E'],
+      data: productNames.length > 0 ? productNames : ['No Data'],
     },
-    yAxis: { type: 'value' },
+    yAxis: { 
+      type: 'value',
+      name: 'Rating',
+      min: 0,
+      max: 5,
+    },
     series: [
       {
         name: 'Rating Score',
         type: 'bar',
-        data: [4.8, 4.6, 4.5, 4.3, 4.2],
-        itemStyle: { color: '#52c41a' },
+        data: ratings.length > 0 ? ratings : [],
+        itemStyle: {
+          color: (params: any) => barColors[params.dataIndex % barColors.length]
+        },
       },
     ],
   }
@@ -133,14 +110,39 @@ const initChart = () => {
 
 const loadTopProducts = async () => {
   try {
-    await analyticsApi.getTopRatedProducts(limit.value)
+    const response = await analyticsApi.getTopRatedProducts(limit.value)
+    
+    if (response && response.data && response.data.length > 0) {
+      // 转换API响应数据格式
+      topProducts.value = response.data.map((item: any, index: number) => ({
+        key: String(index + 1),
+        productId: item.productId || `P${String(index + 1).padStart(3, '0')}`,
+        name: item.name || item.product_name || `Product ${index + 1}`,
+        category: item.category || 'Other',
+        rating: item.rating || 0,
+        reviews: item.reviews || 0,
+        sales: item.sales || 0,
+        status: item.status || 'Active',
+      }))
+
+      // 更新图表
+      const productNames = topProducts.value.map(p => p.name)
+      const ratings = topProducts.value.map(p => p.rating)
+      initChart(productNames, ratings)
+      
+      message.success('Top products loaded successfully')
+    } else {
+      message.info('No products data available')
+    }
   } catch (error) {
     console.error('Failed to load top products:', error)
+    message.error('Failed to load top products')
   }
 }
 
 onMounted(() => {
   initChart()
+  loadTopProducts()
 })
 </script>
 
