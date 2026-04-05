@@ -82,56 +82,56 @@ flowchart TD
 | 构建     | Maven/Vite         | 3.9/4.4 | 编译构建     |
 | 容器     | Docker Compose     | 3.8     | 编排部署     |
 
-## 项目结构
+## System&File Structure
 
 ```
 ecommerce_data_warehouse/
-├── sql/                                    # 数据库 SQL 脚本
-│   ├── 01-app-schema.sql                   # App 源系统数据库
-│   ├── 02-web-schema.sql                   # Web 源系统数据库
-│   ├── 03-warehouse-schema.sql             # 数据仓库数据库
-│   ├── 04-v2-migration.sql                 # V2: 统一订单表迁移脚本
-│   └── README.md                           # SQL 文档
+├── sql/                                    # Database SQL scripts
+│   ├── 01-app-schema.sql                   # App source system database
+│   ├── 02-web-schema.sql                   # Web source system database
+│   ├── 03-warehouse-schema.sql             # Data warehouse database
+│   ├── 04-v2-migration.sql                 # V2: Unified order table migration script
+│   └── README.md                           # SQL documentation
 │
-├── backend/                                 # Spring Boot 后端
+├── backend/                                 # Spring Boot backend
 │   ├── src/main/java/com/uwindsor/warehouse/
-│   │   ├── WarehouseApplication.java       # 主启动类
+│   │   ├── WarehouseApplication.java       # Main application entry point
 │   │   ├── config/
-│   │   │   ├── KafkaConfig.java            # Kafka 配置
-│   │   │   └── DataSourceConfig.java       # 多数据源
+│   │   │   ├── KafkaConfig.java            # Kafka configuration
+│   │   │   └── DataSourceConfig.java       # Multiple data sources configuration
 │   │   ├── domain/
-│   │   │   ├── UnifiedOrder.java           # V2: 统一订单模型
-│   │   │   └── UnifiedOrderItem.java       # V2: 统一订单项模型
+│   │   │   ├── UnifiedOrder.java           # V2: Unified order model
+│   │   │   └── UnifiedOrderItem.java       # V2: Unified order item model
 │   │   ├── mapper/
-│   │   │   ├── UnifiedOrderMapper.java     # V2: 订单数据访问层
-│   │   │   └── UnifiedOrderItemMapper.java # V2: 订单项数据访问层
+│   │   │   ├── UnifiedOrderMapper.java     # V2: Order data access layer
+│   │   │   └── UnifiedOrderItemMapper.java # V2: Order item data access layer
 │   │   ├── controller/
-│   │   │   ├── AnalyticsController.java    # REST API - 分析
-│   │   │   └── UnifiedOrdersController.java # V2: REST API - 统一订单
+│   │   │   ├── AnalyticsController.java    # REST API - analytics
+│   │   │   └── UnifiedOrdersController.java # V2: REST API - unified orders
 │   │   ├── service/
-│   │   │   └── ETLService.java             # ETL 核心逻辑
+│   │   │   └── ETLService.java             # ETL core logic
 │   │   ├── event/
-│   │   │   └── OrderEvent.java             # 事件模型
+│   │   │   └── OrderEvent.java             # Event model
 │   │   └── kafka/
-│   │       └── KafkaEventConsumer.java     # Kafka 消费者
+│   │       └── KafkaEventConsumer.java     # Kafka consumer
 │   ├── src/main/resources/
-│   │   └── application.yml                 # 应用配置
+│   │   └── application.yml                 # Application configuration
 │   ├── pom.xml
 │   ├── Dockerfile
 │   └── README.md
 │
-├── frontend/                                # Vue3 前端
+├── frontend/                                # Vue3 frontend
 │   ├── src/
-│   │   ├── App.vue                         # 主应用
-│   │   ├── main.ts                         # 入口
-│   │   ├── router/                         # 路由配置
-│   │   ├── api/                            # API 服务
+│   │   ├── App.vue                         # Main application
+│   │   ├── main.ts                         # Entry point
+│   │   ├── router/                         # Routing configuration
+│   │   ├── api/                            # API services
 │   │   └── views/
-│   │       ├── Dashboard.vue               # 仪表板
-│   │       ├── SalesAnalytics.vue          # 销售分析
-│   │       ├── ProductInsights.vue         # 产品洞察
-│   │       ├── SyncMonitor.vue             # 同步监控
-│   │       └── UnifiedOrders.vue           # V2: 统一订单仪表板
+│   │       ├── Dashboard.vue               # Dashboard
+│   │       ├── SalesAnalytics.vue          # Sales analytics
+│   │       ├── ProductInsights.vue         # Product insights
+│   │       ├── SyncMonitor.vue             # Synchronization monitoring
+│   │       └── UnifiedOrders.vue           # V2: Unified orders dashboard
 │   ├── package.json
 │   ├── vite.config.ts
 │   ├── tsconfig.json
@@ -139,15 +139,15 @@ ecommerce_data_warehouse/
 │   ├── nginx.conf
 │   └── README.md
 │
-├── docker-compose.yml                      # 容器编排配置
+├── docker-compose.yml                      # Container orchestration configuration
 ├── .gitignore
-├── REQUIREMENTS.md                         # 项目需求文档 (already with V2 section)
-├── REQUIREMENTS_EN.md                      # 项目需求文档英文版 (already with V2 section)
-├── V2_REQUIREMENTS.md                      # V2 详细设计文档
-├── CHANGELOG.md                            # 版本更新日志
-├── DATABASE_DESIGN.md                      # 数据库设计
-├── TECH_SOLUTION.md                        # 技术解决方案
-└── README.md                               # 本文件
+├── REQUIREMENTS.md                         # Project requirements document (already with V2 section)
+├── REQUIREMENTS_EN.md                      # English version of requirements (already with V2 section)
+├── V2_REQUIREMENTS.md                      # V2 detailed design document
+├── CHANGELOG.md                            # Version change log
+├── DATABASE_DESIGN.md                      # Database design
+├── TECH_SOLUTION.md                        # Technical solution
+└── README.md                               # This file
 ```
 
 ## 快速入门
