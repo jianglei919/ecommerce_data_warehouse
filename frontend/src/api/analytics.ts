@@ -47,6 +47,12 @@ export const analyticsApi = {
   sendTestOrder: (orderData: any) =>
     apiClient.post('/api/analytics/test/send-order', orderData),
 
+  // 获取同步日志列表
+  getSyncLogs: (limit: number = 100) =>
+    apiClient.get('/api/analytics/sync/logs', {
+      params: { limit },
+    }),
+
   // 健康检查
   health: () =>
     apiClient.get('/api/analytics/health'),

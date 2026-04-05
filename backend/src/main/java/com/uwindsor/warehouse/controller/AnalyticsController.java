@@ -1,7 +1,9 @@
 package com.uwindsor.warehouse.controller;
 
+import com.uwindsor.warehouse.dto.OrderCreateRequest;
 import com.uwindsor.warehouse.event.OrderEvent;
 import com.uwindsor.warehouse.service.ETLService;
+import com.uwindsor.warehouse.service.OrderService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,9 @@ public class AnalyticsController {
 
     @Autowired
     private ETLService etlService;
+
+    @Autowired
+    private OrderService orderService;
 
     @Autowired
     private KafkaTemplate<String, Object> kafkaTemplate;
@@ -251,12 +256,27 @@ public class AnalyticsController {
                 row.put("name", rs.getString("product_name"));
                 row.put("category", rs.getString("category"));
                 row.put("brand", rs.getString("brand"));
-                row.put("salesCount", rs.getInt("sales_count"));
-                row.put("totalQuantity", rs.getInt("total_quantity"));
-                row.put("totalSalesAmount", rs.getDouble("total_sales_amount"));
+
+                int salesCount = rs.getInt("sales_count");
+                row.put("salesCount", salesCount);
+
+                int totalQuantity = rs.getInt("total_quantity");
+                row.put("totalQuantity", totalQuantity);
+
+                double totalSalesAmount = rs.getDouble("total_sales_amount");
+                row.put("totalSalesAmount", totalSalesAmount);
                 row.put("avgPrice", rs.getDouble("avg_price"));
-                row.put("rating", 4.0 + (Math.random() * 1.0)); // 4.0-5.0 rating
-                row.put("status", "Active");
+
+                // 基于实际销售数据计算评分（不使用虚假数据）
+                // 没有销售则评分为0，销售越多评分越高（最多5星）
+                double calculatedRating = 0.0;
+                if (salesCount > 0) {
+                    // 按销售量计算评分：平均每10个销售加1分，最高5分
+                    calculatedRating = Math.min(5.0, (double) totalQuantity / 10.0);
+                }
+                row.put("rating", Math.round(calculatedRating * 10) / 10.0); // 四舍五入到一位小数
+
+                row.put("status", salesCount > 0 ? "Active" : "No Sales");
                 productsList.add(row);
             }
 
@@ -432,6 +452,27 @@ public class AnalyticsController {
     }
 
     /**
+     * 获取同步日志列表
+     */
+    @GetMapping("/sync/logs")
+    public ResponseEntity<?> getSyncLogs(@RequestParam(defaultValue = "100") int limit) {
+        try {
+            List<Map<String, Object>> logs = etlService.getSyncLogs(limit);
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "data", logs,
+                    "count", logs.size(),
+                    "timestamp", LocalDateTime.now()));
+
+        } catch (Exception e) {
+            log.error("Error fetching sync logs: {}", e.getMessage());
+            return ResponseEntity.status(500).body(Map.of(
+                    "status", "error",
+                    "message", e.getMessage()));
+        }
+    }
+
+    /**
      * 健康检查端点
      */
     @GetMapping("/health")
@@ -440,6 +481,78 @@ public class AnalyticsController {
                 "status", "UP",
                 "service", "warehouse-backend",
                 "timestamp", LocalDateTime.now()));
+    }
+
+    /**
+     * 获取所有产品列表 - 用于前端下拉菜单，支持按来源筛选（APP/WEB）
+     */
+    @GetMapping("/orders/products")
+    public ResponseEntity<?> getProducts(@RequestParam(defaultValue = "APP") String source) {
+        try {
+            log.info("📦 Fetching products for source: {}", source);
+            List<Map<String, Object>> products = orderService.getAllProducts(source);
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "source", source,
+                    "data", products,
+                    "total", products.size(),
+                    "timestamp", LocalDateTime.now()));
+        } catch (Exception e) {
+            log.error("Error fetching products for source {}: {}", source, e.getMessage());
+            return ResponseEntity.status(500).body(Map.of(
+                    "status", "error",
+                    "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * 创建订单并自动发送Kafka消息
+     * 前端表单提交时直接调用此接口
+     */
+    @PostMapping("/orders/create")
+    public ResponseEntity<?> createOrder(@RequestBody OrderCreateRequest request) {
+        try {
+            log.info("📦 Received order creation request: orderId={}, userId={}, productId={}, amount={}",
+                    request.getOrderId(), request.getUserId(), request.getProductId(), request.getTotalAmount());
+
+            // 验证必填字段
+            if (request.getOrderId() == null || request.getOrderId().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "status", "error",
+                        "message", "订单ID不能为空"));
+            }
+
+            if (request.getTotalAmount() == null || request.getTotalAmount() <= 0) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "status", "error",
+                        "message", "订单金额必须大于0"));
+            }
+
+            // 创建OrderEvent
+            OrderEvent event = orderService.createOrderEvent(request);
+
+            log.info("✅ OrderEvent created: eventId={}, orderId={}, userId={}, productId={}",
+                    event.getEventId(), event.getOrderId(), event.getUserId(), event.getProductId());
+
+            // 自动发送到Kafka
+            kafkaTemplate.send("order-events", event.getEventId(), event);
+            log.info("📤 Order sent to Kafka topic 'order-events'");
+
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "event_id", event.getEventId(),
+                    "order_id", event.getOrderId(),
+                    "user_id", event.getUserId(),
+                    "product_id", event.getProductId(),
+                    "message", "订单已创建并发送到系统处理",
+                    "timestamp", LocalDateTime.now()));
+
+        } catch (Exception e) {
+            log.error("❌ Error creating order: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of(
+                    "status", "error",
+                    "message", "订单创建失败: " + e.getMessage()));
+        }
     }
 
 }

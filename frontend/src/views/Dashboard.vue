@@ -70,11 +70,7 @@
       <a-col :xs="24">
         <a-card title="🧪 Test ETL Pipeline">
           <a-space>
-            <a-button type="primary" @click="sendTestOrder">Send Test Order</a-button>
-            <a-button @click="refreshData">Refresh Data</a-button>
-            <span v-if="lastTestTime" class="test-info">
-              Last test: {{ lastTestTime }}
-            </span>
+            <a-button @click="openDataInput" type="dashed" style="background-color: #faad14; color: white; border-color: #faad14;">📥 Data Input</a-button>
           </a-space>
         </a-card>
       </a-col>
@@ -92,7 +88,6 @@ import dayjs from 'dayjs'
 const salesChartRef = ref()
 const categoryChartRef = ref()
 const syncStatus = ref('active')
-const lastTestTime = ref('')
 
 // 图表实例 (防止重复创建)
 let salesChart: any = null
@@ -254,36 +249,9 @@ const loadCategoryData = async () => {
   }
 }
 
-// 发送测试订单
-const sendTestOrder = async () => {
-  try {
-    const testOrder = {
-      eventType: 'ORDER_CREATED',
-      source: 'APP',
-      userId: Math.floor(Math.random() * 5) + 1,
-      orderDate: dayjs().format('YYYY-MM-DD'),
-      totalAmount: Math.random() * 500 + 50,
-      itemCount: Math.floor(Math.random() * 5) + 1,
-    }
-
-    await analyticsApi.sendTestOrder(testOrder)
-    message.success('Test order sent successfully!')
-    lastTestTime.value = dayjs().format('HH:mm:ss')
-  } catch (error) {
-    message.error('Failed to send test order')
-    console.error(error)
-  }
-}
-
-// 刷新数据
-const refreshData = async () => {
-  try {
-    await analyticsApi.getSyncStatistics()
-    message.success('Data refreshed!')
-  } catch (error) {
-    message.error('Failed to refresh data')
-    console.error(error)
-  }
+// 打开Data Input页面
+const openDataInput = () => {
+  window.open('/data-input.html', '_blank')
 }
 
 onMounted(() => {

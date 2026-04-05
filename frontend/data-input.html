@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据导入工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .panel {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        h1,
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+            font-size: 1.4rem;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+
+        h3 {
+            color: #2c3e50;
+            margin-bottom: 0.8rem;
+            font-size: 1rem;
+            margin-top: 1.2rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.7rem;
+            border: 2px solid #e0e6ed;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-family: 'Monaco', 'Courier New', monospace;
+            transition: all 0.3s;
+        }
+
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        textarea {
+            height: 400px;
+            resize: vertical;
+        }
+
+        .control-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        button {
+            padding: 0.8rem 1.2rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-submit {
+            flex: 1;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-validate {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .btn-clear {
+            background: #f0f0f0;
+            color: #2c3e50;
+        }
+
+        .btn-copy {
+            background: #667eea;
+            color: white;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+        }
+
+        .message {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        .template {
+            background: #f7f9fb;
+            border: 1px solid #e0e6ed;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            overflow-x: auto;
+        }
+
+        .template pre {
+            margin: 0 0 0.5rem 0;
+            font-size: 0.75rem;
+            color: #2c3e50;
+            line-height: 1.4;
+            background: white;
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+
+        .instructions {
+            background: #f0f4ff;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            margin-top: 2rem;
+        }
+
+        .instructions ul {
+            margin: 0.5rem 0 0 1.5rem;
+            padding: 0;
+        }
+
+        .instructions li {
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: #2c3e50;
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- 左侧：输入区域 -->
+        <div class="panel">
+            <h2>📥 JSON数据导入</h2>
+
+            <div class="control-group">
+                <label for="db">选择业务库 *</label>
+                <select id="db">
+                    <option value="">-- 请选择 --</option>
+                    <option value="APP">APP库</option>
+                    <option value="WEB">WEB库</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="jsonData">粘贴JSON数据</label>
+                <textarea id="jsonData" placeholder="粘贴单个对象或数组..."></textarea>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-submit" onclick="submitData()">✓ 提交</button>
+                <button class="btn-validate" onclick="validateJson()">验证JSON</button>
+                <button class="btn-clear" onclick="clearForm()">清空</button>
+            </div>
+
+            <div id="messages"></div>
+
+            <div id="history" style="display:none; margin-top: 2rem; padding-top: 2rem; border-top: 2px solid #f0f0f0;">
+                <h3>最近操作</h3>
+                <div id="historyList"></div>
+            </div>
+        </div>
+
+        <!-- 右侧：模板 -->
+        <div class="panel">
+            <h2>📋 数据模板</h2>
+
+            <h3>产品 (新增)</h3>
+            <div class="template">
+                <pre>{
+  "product_name": "iPhone 15 Pro",
+  "category": "Electronics",
+  "brand": "Apple"
+}</pre>
+                <button class="btn-copy" onclick="copyTemplate(this)">复制</button>
+            </div>
+
+            <h3>产品 (编辑)</h3>
+            <div class="template">
+                <pre>{
+  "product_id": 1,
+  "product_name": "iPhone 15 Pro"
+}
+<span style="color: #999;">// 仅更新需要更改的字段
+// 不需要的字段可以删除，不会被更新</span></pre>
+                <button class="btn-copy" onclick="copyTemplate(this)">复制 (只复制ID和一个字段示例)</button>
+            </div>
+
+            <h3>订单 (新增)</h3>
+            <div class="template">
+                <pre>{
+  "user_id": 1,
+  "product_id": 1,
+  "quantity": 1,
+  "total_amount": 999.99,
+  "status": "pending"
+}</pre>
+                <button class="btn-copy" onclick="copyTemplate(this)">复制</button>
+            </div>
+
+            <h3>订单 (编辑)</h3>
+            <div class="template">
+                <pre>{
+  "order_id": 1001,
+  "status": "shipped"
+}
+<span style="color: #999;">// 仅更新需要更改的字段
+// 不需要的字段可以删除，不会被更新</span></pre>
+                <button class="btn-copy" onclick="copyTemplate(this)">复制 (只复制ID和一个字段示例)</button>
+            </div>
+
+            <h3>订单项 (order_items - 自动生成)</h3>
+            <div class="template">
+                <pre>注：订单项会根据订单数据自动生成
+订单表中的字段映射到order_items表：
+- product_id → order_items.product_id
+- quantity → order_items.quantity
+- total_amount/quantity → order_items.unit_price
+- total_amount → order_items.subtotal
+
+无需手动输入order_items数据</pre>
+                <button class="btn-copy" onclick="copyTemplate(this)">复制</button>
+            </div>
+
+            <div class="instructions">
+                <h3>📌 说明</h3>
+                <ul>
+                    <li>✓ <b>新增产品</b>：需要product_name、category；brand可选；不需要product_id</li>
+                    <li>✓ <b>编辑产品</b>：必须包含product_id，其他字段可选（仅填写想要修改的字段）</li>
+                    <li>✓ <b>新增订单</b>：必须包含user_id、product_id、quantity、total_amount</li>
+                    <li>✓ <b>编辑订单</b>：必须包含order_id，其他字段可选（仅填写想要修改的字段）</li>
+                    <li>✓ <b>智能部分更新</b>：编辑时不需要的字段可直接删除，系统只更新提交的字段，绝不覆盖已有值</li>
+                    <li>✓ <b>order_items自动生成</b>：提交订单时自动创建</li>
+                    <li>✓ <b>批量导入</b>：发送数组形式 [...]</li>
+                    <li>✓ <b>自动同步</b>到warehouse库（dim_products、dim_orders）</li>
+                    <li>✓ <b>Kafka消息</b>自动发送（product-events、order-events）</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8080'
+        const operations = []
+
+        function validateJson() {
+            const jsonData = document.getElementById('jsonData').value.trim()
+            const messages = document.getElementById('messages')
+            messages.innerHTML = ''
+
+            if (!jsonData) {
+                messages.innerHTML = '<div class="message info">请输入JSON数据</div>'
+                return
+            }
+
+            try {
+                const data = JSON.parse(jsonData)
+                const isArray = Array.isArray(data)
+                const count = isArray ? data.length : 1
+                messages.innerHTML = `<div class="message info">✓ JSON有效 (${isArray ? '数组' : '对象'}, ${count}条记录)</div>`
+            } catch (error) {
+                messages.innerHTML = `<div class="message error">✗ JSON格式错误: ${error.message}</div>`
+            }
+        }
+
+        function copyTemplate(btn) {
+            const pre = btn.previousElementSibling.querySelector('pre')
+            const text = pre.textContent
+            navigator.clipboard.writeText(text).then(() => {
+                const oldText = btn.textContent
+                btn.textContent = '✓ 已复制'
+                setTimeout(() => {
+                    btn.textContent = oldText
+                }, 2000)
+            })
+        }
+
+        async function submitData() {
+            const db = document.getElementById('db').value
+            const jsonData = document.getElementById('jsonData').value.trim()
+            const messages = document.getElementById('messages')
+            messages.innerHTML = ''
+
+            if (!db) {
+                messages.innerHTML = '<div class="message error">✗ 请选择业务库</div>'
+                return
+            }
+
+            if (!jsonData) {
+                messages.innerHTML = '<div class="message error">✗ 请输入JSON数据</div>'
+                return
+            }
+
+            try {
+                let data = JSON.parse(jsonData)
+                const isArray = Array.isArray(data)
+                data = isArray ? data : [data]
+
+                // 检测数据类型
+                let dataType = ''
+                for (const item of data) {
+                    if (item.product_id !== undefined || item.product_name !== undefined) {
+                        dataType = 'product'
+                        break
+                    }
+                    if (item.order_id !== undefined || item.total_amount !== undefined) {
+                        dataType = 'order'
+                        break
+                    }
+                }
+
+                if (!dataType) {
+                    messages.innerHTML = '<div class="message error">✗ 无法检测数据类型，请检查JSON格式</div>'
+                    return
+                }
+
+                const endpoint = dataType === 'product'
+                    ? '/api/data/import/products'
+                    : '/api/data/import/orders'
+
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ db: db, data: data })
+                })
+
+                const result = await response.json()
+
+                if (result.status === 'success') {
+                    const typeText = dataType === 'product' ? '产品' : '订单'
+                    messages.innerHTML = `<div class="message success">✓ 成功处理 ${result.count} 条${typeText}数据，已发送Kafka消息</div>`
+                    document.getElementById('jsonData').value = ''
+
+                    // 添加到历史
+                    operations.unshift({
+                        time: new Date().toLocaleTimeString('zh-CN'),
+                        type: typeText,
+                        db: db,
+                        status: 'success'
+                    })
+                    updateHistory()
+                } else {
+                    messages.innerHTML = `<div class="message error">✗ ${result.message || '处理失败'}</div>`
+                    operations.unshift({
+                        time: new Date().toLocaleTimeString('zh-CN'),
+                        type: '错误',
+                        db: db,
+                        status: 'error'
+                    })
+                    updateHistory()
+                }
+            } catch (error) {
+                messages.innerHTML = `<div class="message error">✗ 错误: ${error.message}</div>`
+                operations.unshift({
+                    time: new Date().toLocaleTimeString('zh-CN'),
+                    type: '错误',
+                    db: document.getElementById('db').value,
+                    status: 'error'
+                })
+                updateHistory()
+            }
+        }
+
+        function updateHistory() {
+            const history = document.getElementById('history')
+            const historyList = document.getElementById('historyList')
+
+            if (operations.length > 0) {
+                history.style.display = 'block'
+                historyList.innerHTML = operations.slice(0, 5).map(op => `
+                    <div style="padding: 0.5rem; margin-bottom: 0.5rem; border-radius: 4px; font-size: 0.85rem; background: ${op.status === 'success' ? '#f0fdf4' : '#fef2f2'}; border-left: 3px solid ${op.status === 'success' ? '#28a745' : '#dc3545'};">
+                        ${op.time} [${op.type}] ${op.db} ${op.status === 'success' ? '✓' : '✗'}
+                    </div>
+                `).join('')
+            }
+        }
+
+        function clearForm() {
+            document.getElementById('jsonData').value = ''
+            document.getElementById('messages').innerHTML = ''
+        }
+
+        // 页面加载完成提示
+        window.addEventListener('load', () => {
+            console.log('✓ 数据导入工具已加载')
+            console.log('API地址: ' + API_BASE_URL)
+        })
+    </script>
+</body>
+
+</html>

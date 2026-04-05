@@ -109,6 +109,7 @@ app:
   kafka:
     topics:
       order-events: order-events
+      product-events: product-events
       sales-events: sales-events
       sync-events: sync-events
   etl:

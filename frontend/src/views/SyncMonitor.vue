@@ -57,56 +57,20 @@ dayjs.extend(relativeTime)
 
 const loading = ref(false)
 const syncStats = ref({
-  totalSynced: 2840,
-  successRate: 99.8,
-  lastSync: 'now',
+  totalSynced: 0,
+  successRate: 0,
+  lastSync: 'Loading...',
 })
 
-const syncLogs = ref([
-  {
-    key: '1',
-    eventId: 'EVT-001',
-    eventType: 'ORDER_CREATED',
-    source: 'APP',
-    orderId: '1001',
-    status: 'SUCCESS',
-    timestamp: dayjs().subtract(5, 'minutes'),
-  },
-  {
-    key: '2',
-    eventId: 'EVT-002',
-    eventType: 'ORDER_UPDATED',
-    source: 'WEB',
-    orderId: 'WEB-2024-001',
-    status: 'SUCCESS',
-    timestamp: dayjs().subtract(10, 'minutes'),
-  },
-  {
-    key: '3',
-    eventId: 'EVT-003',
-    eventType: 'ORDER_CREATED',
-    source: 'APP',
-    orderId: '1003',
-    status: 'FAILED',
-    timestamp: dayjs().subtract(15, 'minutes'),
-  },
-  {
-    key: '4',
-    eventId: 'EVT-004',
-    eventType: 'ORDER_CREATED',
-    source: 'WEB',
-    orderId: 'WEB-2024-002',
-    status: 'SUCCESS',
-    timestamp: dayjs().subtract(20, 'minutes'),
-  },
-])
+const syncLogs = ref<any[]>([])
 
 const columns = [
-  { title: 'Event ID', dataIndex: 'eventId', key: 'eventId' },
+  { title: 'Event ID', dataIndex: 'eventId', key: 'eventId', width: 150 },
   { title: 'Event Type', dataIndex: 'eventType', key: 'eventType' },
   { title: 'Source', dataIndex: 'source', key: 'source' },
   { title: 'Order ID', dataIndex: 'orderId', key: 'orderId' },
   { title: 'Status', dataIndex: 'status', key: 'status' },
+  { title: 'Error Message', dataIndex: 'errorMessage', key: 'errorMessage', width: 300 },
   {
     title: 'Timestamp',
     dataIndex: 'timestamp',
@@ -129,10 +93,31 @@ const getStatusColor = (status: string) => {
 const refreshSyncStatus = async () => {
   loading.value = true
   try {
-    const result = await analyticsApi.getSyncStatistics()
-    if (result.data) {
-      syncStats.value.totalSynced = result.data.total_synced || 2840
-      syncStats.value.lastSync = 'just now'
+    // 并行获取统计数据和日志数据
+    const [statsResult, logsResult] = await Promise.all([
+      analyticsApi.getSyncStatistics(),
+      analyticsApi.getSyncLogs(100),
+    ])
+
+    // 更新统计数据
+    if (statsResult.data) {
+      syncStats.value.totalSynced = statsResult.data.total_synced || 0
+      syncStats.value.successRate = statsResult.data.success_rate || 0
+      syncStats.value.lastSync = statsResult.data.last_sync_time || 'Never'
+    }
+
+    // 更新日志数据
+    if (logsResult.data && Array.isArray(logsResult.data)) {
+      syncLogs.value = logsResult.data.map((log: any, index: number) => ({
+        key: String(index + 1),
+        eventId: log.eventId,
+        eventType: log.eventType,
+        source: log.source,
+        orderId: log.orderId,
+        status: log.status,
+        timestamp: log.timestamp ? dayjs(log.timestamp) : dayjs(),
+        errorMessage: log.errorMessage,
+      }))
     }
   } catch (error) {
     console.error('Failed to refresh sync status:', error)

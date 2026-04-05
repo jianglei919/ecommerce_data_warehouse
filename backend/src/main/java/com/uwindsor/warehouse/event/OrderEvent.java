@@ -84,6 +84,20 @@ public class OrderEvent implements Serializable {
     private Integer itemCount;
 
     /**
+     * 产品ID
+     */
+    @JsonProperty("product_id")
+    @JsonAlias("productId")
+    private Long productId;
+
+    /**
+     * 产品名称
+     */
+    @JsonProperty("product_name")
+    @JsonAlias("productName")
+    private String productName;
+
+    /**
      * 核心数据 (JSON格式的订单明细)
      */
     @JsonProperty("payload")

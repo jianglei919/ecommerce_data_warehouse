@@ -41,6 +41,9 @@ public class KafkaConfig {
     @Value("${app.kafka.topics.sync-events}")
     private String syncEventsTopic;
 
+    @Value("${app.kafka.topics.product-events}")
+    private String productEventsTopic;
+
     /**
      * Kafka AdminClient 配置
      */
@@ -86,6 +89,19 @@ public class KafkaConfig {
                 .partitions(1)
                 .replicas(1)
                 .config("retention.ms", "2592000000") // 30 days
+                .build();
+    }
+
+    /**
+     * 创建 product-events Topic
+     */
+    @Bean
+    public NewTopic productEventsTopic() {
+        return TopicBuilder.name(productEventsTopic)
+                .partitions(1)
+                .replicas(1)
+                .config("retention.ms", "604800000") // 7 days
+                .config("compression.type", "snappy")
                 .build();
     }
 
@@ -141,6 +157,41 @@ public class KafkaConfig {
     public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, Object>> kafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
+        factory.setConcurrency(3);
+        factory.setBatchListener(true);
+        factory.getContainerProperties().setPollTimeout(3000);
+        factory.getContainerProperties()
+                .setAckMode(org.springframework.kafka.listener.ContainerProperties.AckMode.MANUAL);
+        return factory;
+    }
+
+    /**
+     * Consumer Factory for Product Events - 使用通用的JsonDeserializer
+     */
+    @Bean
+    public ConsumerFactory<String, Object> productConsumerFactory() {
+        Map<String, Object> configProps = new HashMap<>();
+        configProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        configProps.put(ConsumerConfig.GROUP_ID_CONFIG, "warehouse-product-sync-group");
+        configProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        configProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+        configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        configProps.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
+        configProps.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
+        configProps.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 10000);
+        configProps.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "java.util.HashMap");
+        configProps.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
+        return new DefaultKafkaConsumerFactory<>(configProps);
+    }
+
+    /**
+     * Kafka Listener Container Factory for Product Events
+     */
+    @Bean
+    public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, Object>> productListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(productConsumerFactory());
         factory.setConcurrency(3);
         factory.setBatchListener(true);
         factory.getContainerProperties().setPollTimeout(3000);

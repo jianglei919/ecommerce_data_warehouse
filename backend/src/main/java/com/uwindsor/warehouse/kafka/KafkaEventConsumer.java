@@ -11,6 +11,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Kafka 消费者 - ETL 事件处理
@@ -57,6 +58,38 @@ public class KafkaEventConsumer {
             log.error("Error processing event batch: {}", e.getMessage(), e);
             // 错误事件会被发送到 DLQ 或者记录到 sync_log 表
             etlService.logErrors(events, e);
+        }
+    }
+
+    /**
+     * 监听产品事件 - 处理产品同步
+     */
+    @KafkaListener(topics = "${app.kafka.topics.product-events}", groupId = "warehouse-product-sync-group", containerFactory = "productListenerContainerFactory")
+    public void handleProductEvents(
+            @Payload List<Map<String, Object>> events,
+            Acknowledgment acknowledgment) {
+
+        if (events == null || events.isEmpty()) {
+            log.debug("Empty product event batch received");
+            return;
+        }
+
+        long startTime = System.currentTimeMillis();
+        log.info("Processing batch of {} product events", events.size());
+
+        try {
+            // 处理产品同步
+            etlService.processBatchProducts(events);
+
+            // 手动提交偏移量
+            if (acknowledgment != null) {
+                acknowledgment.acknowledge();
+                log.info("Batch of {} product events committed successfully (took {} ms)",
+                        events.size(), System.currentTimeMillis() - startTime);
+            }
+
+        } catch (Exception e) {
+            log.error("Error processing product event batch: {}", e.getMessage(), e);
         }
     }
 
