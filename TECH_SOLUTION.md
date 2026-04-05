@@ -221,8 +221,10 @@ graph TD
     v2["去重检查"]
     v3["业务规则校验"]
     load["WarehouseLoader<br/>(加载到仓库)"]
-    l1["INSERT/UPDATE<br/>fact_sales_by_category_time"]
-    l2["INSERT/UPDATE<br/>fact_top_rated_products"]
+    l1["INSERT/UPDATE<br/>dim_products"]
+    l2["INSERT/UPDATE<br/>dim_orders"]
+    l3["INSERT/UPDATE<br/>dim_order_items"]
+    l4["INSERT/UPDATE<br/>fact_sales_by_product_time"]
     handler["CompletionHandler<br/>(完成处理)"]
     h1["记录同步日志"]
     h2["发送邮件/消息"]
@@ -244,8 +246,12 @@ graph TD
     v3 --> load
     load --> l1
     load --> l2
+    load --> l3
+    load --> l4
     l1 --> handler
     l2 --> handler
+    l3 --> handler
+    l4 --> handler
     handler --> h1
     handler --> h2
     handler --> h3
@@ -263,11 +269,15 @@ graph TD
     style load fill:#fce4ec,stroke:#c2185b,stroke-width:2px
     style l1 fill:#fce4ec,stroke:#c2185b,stroke-width:1px
     style l2 fill:#fce4ec,stroke:#c2185b,stroke-width:1px
+    style l3 fill:#fce4ec,stroke:#c2185b,stroke-width:1px
+    style l4 fill:#fce4ec,stroke:#c2185b,stroke-width:1px
     style handler fill:#e0f2f1,stroke:#00897b,stroke-width:2px
     style h1 fill:#e0f2f1,stroke:#00897b,stroke-width:1px
     style h2 fill:#e0f2f1,stroke:#00897b,stroke-width:1px
     style h3 fill:#e0f2f1,stroke:#00897b,stroke-width:1px
 ```
+
+仓库层的实际表为：`dim_products`、`dim_orders`、`dim_order_items`、`fact_sales_by_product_time`。
 
 ---
 
