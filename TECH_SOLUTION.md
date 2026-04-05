@@ -724,40 +724,81 @@ public class WarehouseLoader {
 #### 表结构
 
 ```sql
--- 销量事实表
-CREATE TABLE fact_sales_by_category_time (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    category VARCHAR(50) NOT NULL,
-    year INT NOT NULL,
-    month INT NOT NULL,
-    day INT NOT NULL,
-    total_quantity INT NOT NULL DEFAULT 0,
-    total_sales_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_category_time (category, year, month, day),
-    KEY idx_category (category),
-    KEY idx_year_month (year, month)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- 产品维度表
+CREATE TABLE `dim_products` (
+  `product_key` int NOT NULL AUTO_INCREMENT COMMENT '维度代理键 (Business Key: source+product_id)',
+  `source` varchar(10) NOT NULL COMMENT 'APP 或 WEB 业务源',
+  `product_id` int NOT NULL COMMENT '业务键 - 商品ID',
+  `product_name` varchar(200) NOT NULL COMMENT '商品名称',
+  `category` varchar(50) NOT NULL COMMENT '商品类别',
+  `brand` varchar(50) DEFAULT NULL COMMENT '品牌',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`product_key`),
+  UNIQUE KEY `uk_source_product` (`source`,`product_id`),
+  KEY `idx_source` (`source`),
+  KEY `idx_category` (`category`),
+  KEY `idx_brand` (`brand`)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='商品维度表 (Surrogate Key: source+product_id)';
 
--- 商品评分事实表
-CREATE TABLE fact_top_rated_products (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    product_id INT NOT NULL,
-    product_name VARCHAR(200) NOT NULL,
-    category VARCHAR(50),
-    year INT NOT NULL,
-    month INT NOT NULL,
-    day INT NOT NULL,
-    avg_rating DECIMAL(3,2),
-    review_count INT NOT NULL DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_product_time (product_id, year, month, day),
-    KEY idx_category (category),
-    KEY idx_avg_rating (avg_rating DESC),
-    KEY idx_year_month (year, month)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- 订单维度表
+CREATE TABLE `dim_orders` (
+  `order_id` int NOT NULL AUTO_INCREMENT COMMENT '订单ID',
+  `source` varchar(10) NOT NULL COMMENT 'APP 或 WEB',
+  `app_order_id` int DEFAULT NULL COMMENT 'App系统订单ID',
+  `web_order_no` varchar(50) DEFAULT NULL COMMENT 'Web系统订单号',
+  `user_id` int NOT NULL COMMENT '用户ID',
+  `order_date` date NOT NULL,
+  `total_amount` decimal(15,2) NOT NULL,
+  `status` varchar(20) DEFAULT 'pending',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`order_id`),
+  UNIQUE KEY `uk_source_order` (`source`,`app_order_id`,`web_order_no`),
+  KEY `idx_source` (`source`),
+  KEY `idx_order_date` (`order_date`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_source_date` (`source`,`order_date`)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='订单维度表 (App+Web)';
+
+-- 订单项目维度表
+CREATE TABLE `dim_order_items` (
+  `item_id` int NOT NULL AUTO_INCREMENT COMMENT '订单项ID',
+  `order_id` int NOT NULL,
+  `product_id` int NOT NULL COMMENT '商品ID',
+  `product_name` varchar(200) NOT NULL COMMENT '商品名称',
+  `category` varchar(50) DEFAULT NULL COMMENT '商品类别',
+  `quantity` int NOT NULL DEFAULT '1',
+  `unit_price` decimal(10,2) NOT NULL,
+  `subtotal` decimal(15,2) NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`item_id`),
+  KEY `idx_order_id` (`order_id`),
+  KEY `idx_product_id` (`product_id`),
+  KEY `idx_category` (`category`),
+  CONSTRAINT `dim_order_items_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `dim_orders` (`order_id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='订单项维度表';
+
+-- 销售事实表（按产品和时间）
+CREATE TABLE `fact_sales_by_product_time` (
+  `fact_id` int NOT NULL AUTO_INCREMENT COMMENT '事实表ID',
+  `product_key` int NOT NULL COMMENT 'FK: dim_products.product_key',
+  `year` int NOT NULL COMMENT '年份',
+  `month` int NOT NULL COMMENT '月份',
+  `day` int NOT NULL COMMENT '日期',
+  `total_quantity` int NOT NULL COMMENT '销售数量',
+  `total_sales_amount` decimal(15,2) NOT NULL COMMENT '销售金额',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`fact_id`),
+  UNIQUE KEY `uk_product_time` (`product_key`,`year`,`month`,`day`),
+  KEY `idx_product_key` (`product_key`),
+  KEY `idx_year_month_day` (`year`,`month`,`day`),
+  KEY `idx_date_range` (`year`,`month`),
+  CONSTRAINT `fact_sales_by_product_time_ibfk_1` FOREIGN KEY (`product_key`) REFERENCES `dim_products` (`product_key`)
+) ENGINE=InnoDB AUTO_INCREMENT=45 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='销售事实表 (按商品+时间维度)';
 
 -- 同步日志表（用于监控和调试）
 CREATE TABLE sync_log (

@@ -722,40 +722,81 @@ public class WarehouseLoader {
 #### Table Structure
 
 ```sql
--- Sales Fact Table
-CREATE TABLE fact_sales_by_category_time (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    category VARCHAR(50) NOT NULL,
-    year INT NOT NULL,
-    month INT NOT NULL,
-    day INT NOT NULL,
-    total_quantity INT NOT NULL DEFAULT 0,
-    total_sales_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_category_time (category, year, month, day),
-    KEY idx_category (category),
-    KEY idx_year_month (year, month)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- Product Dimension Table
+CREATE TABLE `dim_products` (
+  `product_key` int NOT NULL AUTO_INCREMENT COMMENT 'Surrogate Key (Business Key: source+product_id)',
+  `source` varchar(10) NOT NULL COMMENT 'APP or WEB source',
+  `product_id` int NOT NULL COMMENT 'Business Key - Product ID',
+  `product_name` varchar(200) NOT NULL COMMENT 'Product Name',
+  `category` varchar(50) NOT NULL COMMENT 'Product Category',
+  `brand` varchar(50) DEFAULT NULL COMMENT 'Brand',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`product_key`),
+  UNIQUE KEY `uk_source_product` (`source`,`product_id`),
+  KEY `idx_source` (`source`),
+  KEY `idx_category` (`category`),
+  KEY `idx_brand` (`brand`)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Product Dimension Table';
 
--- Top-Rated Products Fact Table
-CREATE TABLE fact_top_rated_products (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    product_id INT NOT NULL,
-    product_name VARCHAR(200) NOT NULL,
-    category VARCHAR(50),
-    year INT NOT NULL,
-    month INT NOT NULL,
-    day INT NOT NULL,
-    avg_rating DECIMAL(3,2),
-    review_count INT NOT NULL DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_product_time (product_id, year, month, day),
-    KEY idx_category (category),
-    KEY idx_avg_rating (avg_rating DESC),
-    KEY idx_year_month (year, month)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- Order Dimension Table
+CREATE TABLE `dim_orders` (
+  `order_id` int NOT NULL AUTO_INCREMENT COMMENT 'Order ID',
+  `source` varchar(10) NOT NULL COMMENT 'APP or WEB',
+  `app_order_id` int DEFAULT NULL COMMENT 'App System Order ID',
+  `web_order_no` varchar(50) DEFAULT NULL COMMENT 'Web System Order Number',
+  `user_id` int NOT NULL COMMENT 'User ID',
+  `order_date` date NOT NULL,
+  `total_amount` decimal(15,2) NOT NULL,
+  `status` varchar(20) DEFAULT 'pending',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`order_id`),
+  UNIQUE KEY `uk_source_order` (`source`,`app_order_id`,`web_order_no`),
+  KEY `idx_source` (`source`),
+  KEY `idx_order_date` (`order_date`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_source_date` (`source`,`order_date`)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Order Dimension Table (App+Web)';
+
+-- Order Items Dimension Table
+CREATE TABLE `dim_order_items` (
+  `item_id` int NOT NULL AUTO_INCREMENT COMMENT 'Order Item ID',
+  `order_id` int NOT NULL,
+  `product_id` int NOT NULL COMMENT 'Product ID',
+  `product_name` varchar(200) NOT NULL COMMENT 'Product Name',
+  `category` varchar(50) DEFAULT NULL COMMENT 'Product Category',
+  `quantity` int NOT NULL DEFAULT '1',
+  `unit_price` decimal(10,2) NOT NULL,
+  `subtotal` decimal(15,2) NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`item_id`),
+  KEY `idx_order_id` (`order_id`),
+  KEY `idx_product_id` (`product_id`),
+  KEY `idx_category` (`category`),
+  CONSTRAINT `dim_order_items_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `dim_orders` (`order_id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Order Items Dimension Table';
+
+-- Sales Fact Table (By Product and Time)
+CREATE TABLE `fact_sales_by_product_time` (
+  `fact_id` int NOT NULL AUTO_INCREMENT COMMENT 'Fact Table ID',
+  `product_key` int NOT NULL COMMENT 'FK: dim_products.product_key',
+  `year` int NOT NULL COMMENT 'Year',
+  `month` int NOT NULL COMMENT 'Month',
+  `day` int NOT NULL COMMENT 'Day',
+  `total_quantity` int NOT NULL COMMENT 'Sales Quantity',
+  `total_sales_amount` decimal(15,2) NOT NULL COMMENT 'Sales Amount',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`fact_id`),
+  UNIQUE KEY `uk_product_time` (`product_key`,`year`,`month`,`day`),
+  KEY `idx_product_key` (`product_key`),
+  KEY `idx_year_month_day` (`year`,`month`,`day`),
+  KEY `idx_date_range` (`year`,`month`),
+  CONSTRAINT `fact_sales_by_product_time_ibfk_1` FOREIGN KEY (`product_key`) REFERENCES `dim_products` (`product_key`)
+) ENGINE=InnoDB AUTO_INCREMENT=45 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Sales Fact Table (By Product and Time Dimensions)';
 
 -- Sync Log Table (For monitoring and debugging)
 CREATE TABLE sync_log (
