@@ -125,8 +125,10 @@ graph TB
     consumer --> transform
     transform --> validate
     validate --> warehouse_db
+    warehouse_db --> dim_prod
+    warehouse_db --> dim_ord
+    warehouse_db --> dim_items
     warehouse_db --> fact_sales
-    warehouse_db --> fact_top
     warehouse_db --> analytics_api
     warehouse_db --> export_api
     analytics_api --> dashboard
