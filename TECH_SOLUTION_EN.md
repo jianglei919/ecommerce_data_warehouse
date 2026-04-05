@@ -102,8 +102,10 @@ graph TB
 
     subgraph warehouse["Data Warehouse"]
         warehouse_db["ecommerce_warehouse<br/>MySQL 8.0"]
-        fact_sales["fact_sales_by_category_time"]
-        fact_top["fact_top_rated_products"]
+        dim_prod["dim_products"]
+        dim_ord["dim_orders"]
+        dim_items["dim_order_items"]
+        fact_sales["fact_sales_by_product_time"]
     end
 
     subgraph api["API Layer"]
@@ -970,7 +972,7 @@ graph TD
     kafka["Kafka Topic<br/>(order-events)<br/>Partitions: 3"]
     consumer["WarehouseETLConsumer<br/>(Concurrent Processing)"]
     transform["Transform/Validate"]
-    warehouse["Warehouse Database<br/>fact_sales_by_category_time<br/>fact_top_rated_products"]
+    warehouse["Warehouse Database<br/>dim_products<br/>dim_orders<br/>dim_order_items<br/>fact_sales_by_product_time"]
     api["API Query Layer"]
     frontend["Vue3 Frontend<br/>(WebSocket Updates)"]
 
