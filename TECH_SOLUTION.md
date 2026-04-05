@@ -851,6 +851,26 @@ public class AnalyticsService {
 }
 ```
 
+### 界面功能 - 后台接口 - 数据库表 对照表
+
+下表按照当前前端路由和页面功能整理，便于联调、排查和扩展。
+
+| 界面/功能                 | 前端入口          | 对应后台接口                                                                                                                                                                                                              | 主要涉及数据库表                                                                                                                                                                                                                                        |
+| ------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dashboard 首页            | `/`               | `GET /api/analytics/sales/summary`、`GET /api/analytics/sales/by-date`                                                                                                                                                    | `dim_orders`、`dim_order_items`                                                                                                                                                                                                                         |
+| Sales Analytics 销售分析  | `/sales`          | `GET /api/analytics/sales/by-category`                                                                                                                                                                                    | `dim_orders`、`dim_order_items`                                                                                                                                                                                                                         |
+| Product Insights 商品洞察 | `/products`       | `GET /api/analytics/products/top-rated`                                                                                                                                                                                   | `dim_products`、`dim_order_items`、`dim_orders`                                                                                                                                                                                                         |
+| Sync Monitor 同步监控     | `/sync`           | `GET /api/analytics/sync/statistics`、`GET /api/analytics/sync/logs`                                                                                                                                                      | `sync_log`                                                                                                                                                                                                                                              |
+| Unified Orders 统一订单   | `/orders`         | `GET /api/unified-orders`、`GET /api/unified-orders/{id}`、`GET /api/unified-orders/overview`、`GET /api/unified-orders/stats/by-source`、`GET /api/unified-orders/stats/product-sales`                                   | `dim_orders`、`dim_order_items`、`dim_products`                                                                                                                                                                                                         |
+| OLAP Analytics 多维分析   | `/olap`           | `GET /api/unified-orders/analytics/rollup`、`GET /api/unified-orders/analytics/drilldown`、`GET /api/unified-orders/analytics/slice`、`GET /api/unified-orders/analytics/dice`、`GET /api/unified-orders/analytics/pivot` | `fact_sales_by_product_time`、`dim_products`                                                                                                                                                                                                            |
+| Data Input 数据导入页     | `data-input.html` | `POST /api/data/import/products`、`POST /api/data/import/orders`、`POST /api/data/import/orders/sync`                                                                                                                     | `ecommerce_source_app.products`、`ecommerce_source_app.orders`、`ecommerce_source_app.order_items`、`ecommerce_source_web.products`、`ecommerce_source_web.orders`、`ecommerce_source_web.order_items`、`dim_products`、`dim_orders`、`dim_order_items` |
+
+#### 补充说明
+
+- Dashboard 页面还通过 WebSocket 订阅 `/topic/warehouse-updates` 获取实时同步状态，但这是消息通道，不是数据库表。
+- `Product Insights` 当前评分展示基于仓库销售数据计算，不直接读取 `product_reviews` 表。
+- `Unified Orders` 和 `OLAP Analytics` 的数据都来自仓库层，核心事实表为 `fact_sales_by_product_time`，维度表为 `dim_orders`、`dim_order_items`、`dim_products`。
+
 ### 第6层：前端展示层
 
 #### Vue3 组件结构
