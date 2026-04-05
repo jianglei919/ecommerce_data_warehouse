@@ -25,18 +25,18 @@ config:
   theme: base
 ---
 flowchart TD
-    FE["🖥️ Vue3 前端仪表板<br/>http://localhost:5173"]
+    FE[" Vue3 Front Dashboard<br/>http://localhost:5173"]
 
-    BE["⚙️ Spring Boot 后端<br/>ETL & Analytics<br/>http://localhost:8080"]
+    BE[" Spring Boot backend<br/>ETL & Analytics<br/>http://localhost:8080"]
 
-    OE["📨 order-events<br/>sales-events"]
-    SE["🔔 sync-events<br/>监控事件"]
+    OE[" order-events<br/>sales-events"]
+    SE[" sync-events<br/>Monitoring events"]
 
-    KAFKA["🚀 Apache Kafka 消息总线<br/>实时事件流处理"]
+    KAFKA[" Apache Kafka Message bus<br/>Real-time event stream processing"]
 
-    APP["📱 App Source DB<br/>MySQL 3306<br/>order_id INT"]
-    WEB["🌐 Web Source DB<br/>MySQL 3307<br/>order_no VARCHAR"]
-    WH["📊 Warehouse DB<br/>MySQL 3308<br/>Aggregated Facts"]
+    APP[" App Source DB<br/>MySQL 3306<br/>order_id INT"]
+    WEB[" Web Source DB<br/>MySQL 3307<br/>order_no VARCHAR"]
+    WH[" Warehouse DB<br/>MySQL 3308<br/>Aggregated Facts"]
 
     FE -->|REST API| BE
     BE --> OE
