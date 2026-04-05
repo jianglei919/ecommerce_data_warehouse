@@ -46,8 +46,8 @@ flowchart TD
     KAFKA --> APP
     KAFKA --> WEB
     KAFKA --> WH
-    APP -.->|异构数据| KAFKA
-    WEB -.->|异构数据| KAFKA
+    APP -.->|Heterogeneous data| KAFKA
+    WEB -.->|Heterogeneous data| KAFKA
 
     style FE fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
     style BE fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
