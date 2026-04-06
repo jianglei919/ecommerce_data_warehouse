@@ -3,34 +3,34 @@
     <div class="layout">
       <!-- 左侧：输入区域 -->
       <div class="input-panel">
-        <h2>📥 JSON数据导入</h2>
-        
+        <h2>📥 JSON Data Import</h2>
+
         <div class="controls">
           <div class="control-row">
-            <label>选择业务库 *</label>
+            <label>Select Business DB *</label>
             <select v-model="selectedDb">
-              <option value="">-- 请选择 --</option>
-              <option value="APP">APP库</option>
-              <option value="WEB">WEB库</option>
+              <option value="">-- Please Select --</option>
+              <option value="APP">APP DB</option>
+              <option value="WEB">WEB DB</option>
             </select>
           </div>
         </div>
 
         <div class="textarea-wrapper">
-          <label>粘贴JSON数据</label>
-          <textarea 
+          <label>Paste JSON Data</label>
+          <textarea
             v-model="jsonInput" 
-            placeholder="粘贴单个对象或数组..." 
+            placeholder="Paste single object or array..."
             class="json-input"
           ></textarea>
         </div>
 
         <div class="buttons">
           <button @click="submitData" :disabled="!jsonInput.trim() || !selectedDb" class="btn btn-primary">
-            {{ isLoading ? '处理中...' : '✓ 提交' }}
+            {{ isLoading ? 'Processing...' : '✓ Submit' }}
           </button>
-          <button @click="validateJson" class="btn btn-validate">验证JSON</button>
-          <button @click="clearForm" class="btn btn-clear">清空</button>
+          <button @click="validateJson" class="btn btn-validate">Validate JSON</button>
+          <button @click="clearForm" class="btn btn-clear">Clear</button>
         </div>
 
         <!-- 消息反馈 -->
@@ -47,39 +47,39 @@
 
       <!-- 右侧：模板 -->
       <div class="template-panel">
-        <h2>📋 数据模板</h2>
+        <h2>📋 Data Templates</h2>
 
         <div class="template">
-          <h3>产品 (新增)</h3>
+          <h3>Product (New)</h3>
           <pre>{{ productNewTemplate }}</pre>
-          <button @click="copyToClipboard(productNewTemplate)" class="copy-btn">复制</button>
+          <button @click="copyToClipboard(productNewTemplate)" class="copy-btn">Copy</button>
         </div>
 
         <div class="template">
-          <h3>产品 (编辑)</h3>
+          <h3>Product (Edit)</h3>
           <pre>{{ productEditTemplate }}</pre>
-          <button @click="copyToClipboard(productEditTemplate)" class="copy-btn">复制</button>
+          <button @click="copyToClipboard(productEditTemplate)" class="copy-btn">Copy</button>
         </div>
 
         <div class="template">
-          <h3>订单 (新增)</h3>
+          <h3>Order (New)</h3>
           <pre>{{ orderNewTemplate }}</pre>
-          <button @click="copyToClipboard(orderNewTemplate)" class="copy-btn">复制</button>
+          <button @click="copyToClipboard(orderNewTemplate)" class="copy-btn">Copy</button>
         </div>
 
         <div class="template">
-          <h3>订单 (编辑)</h3>
+          <h3>Order (Edit)</h3>
           <pre>{{ orderEditTemplate }}</pre>
-          <button @click="copyToClipboard(orderEditTemplate)" class="copy-btn">复制</button>
+          <button @click="copyToClipboard(orderEditTemplate)" class="copy-btn">Copy</button>
         </div>
 
         <div class="instructions">
-          <h4>📌 说明</h4>
+          <h4>📌 Instructions</h4>
           <ul>
-            <li>新增：不需要ID字段</li>
-            <li>编辑：必须包含ID字段</li>
-            <li>批量：发送数组 [...]</li>
-            <li>自动同步到warehouse库</li>
+            <li>New: ID field not required</li>
+            <li>Edit: Must include ID field</li>
+            <li>Batch: Send array [...]</li>
+            <li>Auto-syncs to warehouse DB</li>
           </ul>
         </div>
       </div>
@@ -87,7 +87,7 @@
 
     <!-- 最近操作记录 -->
     <div v-if="recentOperations.length > 0" class="history-section">
-      <h3>📝 最近操作 (最多10条)</h3>
+      <h3>📝 Recent Operations (Max 10)</h3>
       <div class="operation-list">
         <div v-for="op in recentOperations" :key="op.id" class="operation-item" :class="op.status">
           <span class="op-time">{{ op.time }}</span>
@@ -120,7 +120,7 @@ const productTemplate = ref(`{
   "stock_quantity": 50
 }
 
-// 更新时添加 ID：
+// Add ID when updating:
 {
   "product_id": 1,
   "product_name": "iPhone 15 Pro",
@@ -129,7 +129,7 @@ const productTemplate = ref(`{
   "stock_quantity": 50
 }
 
-// 批量操作：
+// Batch operation:
 [
   {"product_name": "iPhone 15", "category": "Electronics", "price": 899.99, "stock_quantity": 100},
   {"product_name": "MacBook Pro", "category": "Electronics", "price": 1999.99, "stock_quantity": 30}
@@ -142,10 +142,10 @@ const orderTemplate = ref(`{
   "total_amount": 999.99,
   "quantity": 1,
   "status": "PENDING",
-  "remarks": "订单备注"
+  "remarks": "Order note"
 }
 
-// 更新时（包含order ID）：
+// When updating (include order ID):
 {
   "order_id": "ORD-2024-001",
   "user_id": 1,
@@ -155,20 +155,20 @@ const orderTemplate = ref(`{
   "status": "SHIPPED"
 }
 
-// 批量操作：
+// Batch operation:
 [
   {"order_id": "ORD-2024-001", "user_id": 1, "product_id": 1, "total_amount": 999.99, "quantity": 1, "status": "PENDING"},
   {"order_id": "ORD-2024-002", "user_id": 2, "product_id": 2, "total_amount": 1999.99, "quantity": 1, "status": "PENDING"}
 ]`)
 
-// 验证JSON格式
+// Validate JSON format
 const validateJson = () => {
   try {
     validationMessage.value = ''
     errorMessage.value = ''
 
     if (!jsonInput.value.trim()) {
-      validationMessage.value = '请输入JSON数据'
+      validationMessage.value = 'Please enter JSON data'
       return
     }
 
@@ -189,32 +189,32 @@ const validateJson = () => {
     }
 
     const details = isArray
-      ? `✓ 有效数组，包含 ${items.length} 条记录`
-      : `✓ 有效对象`
+      ? `✓ Valid array, containing ${items.length} records`
+      : `✓ Valid object`
 
-    validationMessage.value = `${details} | 检测类型: ${detectedType || '未知'}`
+    validationMessage.value = `${details} | Detected type: ${detectedType || 'Unknown'}`
 
     if (detectedType && !dataType.value) {
       dataType.value = detectedType
     }
   } catch (error) {
     validationMessage.value = ''
-    errorMessage.value = `JSON格式错误: ${error instanceof Error ? error.message : '未知错误'}`
+    errorMessage.value = `JSON format error: ${error instanceof Error ? error.message : 'Unknown error'}`
   }
 }
 
-// 复制模板
+// Copy template
 const copyTemplate = (type: string) => {
   const template = type === 'product' ? productTemplate.value : orderTemplate.value
   navigator.clipboard.writeText(template).then(() => {
-    successMessage.value = `已复制${type === 'product' ? '产品' : '订单'}模板`
+    successMessage.value = `Copied ${type === 'product' ? 'Product' : 'Order'} template`
     setTimeout(() => {
       successMessage.value = ''
     }, 2000)
   })
 }
 
-// 提交数据
+// Submit data
 const submitData = async () => {
   try {
     isLoading.value = true
@@ -223,21 +223,21 @@ const submitData = async () => {
     validationMessage.value = ''
 
     if (!selectedDb.value) {
-      errorMessage.value = '请选择业务库'
+      errorMessage.value = 'Please select a business DB'
       return
     }
 
     if (!jsonInput.value.trim()) {
-      errorMessage.value = '请输入JSON数据'
+      errorMessage.value = 'Please enter JSON data'
       return
     }
 
-    // 验证JSON
+    // Validate JSON
     let data = JSON.parse(jsonInput.value)
     const isArray = Array.isArray(data)
     data = isArray ? data : [data]
 
-    // 自动检测类型
+    // Autodetect type
     let detectedType = dataType.value
 
     if (!detectedType) {
@@ -254,11 +254,11 @@ const submitData = async () => {
     }
 
     if (!detectedType) {
-      errorMessage.value = '无法检测数据类型，请指定类型或使用标准模板'
+      errorMessage.value = 'Unable to detect data type, please specify type or use standard template'
       return
     }
 
-    // 调用后端API
+    // Call backend API
     const endpoint = detectedType === 'product' ? '/api/data/import/products' : '/api/data/import/orders'
     const payload = {
       db: selectedDb.value,
@@ -266,7 +266,7 @@ const submitData = async () => {
       dataType: detectedType
     }
 
-    console.log(`📤 提交${detectedType}数据到${selectedDb.value}库:`, payload)
+    console.log(`📤 Submitting ${detectedType} data to ${selectedDb.value} DB:`, payload)
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'POST',
@@ -277,13 +277,13 @@ const submitData = async () => {
     const result = await response.json()
 
     if (result.status === 'success') {
-      successMessage.value = `✓ 成功处理 ${result.count} 条${detectedType === 'product' ? '产品' : '订单'}数据。消息已发送到Kafka。`
+      successMessage.value = `✓ Successfully processed ${result.count} ${detectedType === 'product' ? 'product' : 'order'} records. Message sent to Kafka.`
 
-      // 添加到历史记录
+      // Add to history
       recentOperations.value.unshift({
         id: Date.now(),
-        time: new Date().toLocaleTimeString('zh-CN'),
-        type: detectedType === 'product' ? '产品' : '订单',
+        time: new Date().toLocaleTimeString('en-US'),
+        type: detectedType === 'product' ? 'Product' : 'Order',
         db: selectedDb.value,
         status: 'success'
       })
@@ -292,24 +292,24 @@ const submitData = async () => {
         recentOperations.value = recentOperations.value.slice(0, 10)
       }
 
-      // 清空输入
+      // Clear input
       jsonInput.value = ''
     } else {
-      errorMessage.value = result.message || '数据处理失败'
+      errorMessage.value = result.message || 'Data processing failed'
       recentOperations.value.unshift({
         id: Date.now(),
-        time: new Date().toLocaleTimeString('zh-CN'),
-        type: detectedType === 'product' ? '产品' : '订单',
+        time: new Date().toLocaleTimeString('en-US'),
+        type: detectedType === 'product' ? 'Product' : 'Order',
         db: selectedDb.value,
         status: 'error'
       })
     }
   } catch (error) {
-    errorMessage.value = `错误: ${error instanceof Error ? error.message : '未知错误'}`
+    errorMessage.value = `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
     recentOperations.value.unshift({
       id: Date.now(),
-      time: new Date().toLocaleTimeString('zh-CN'),
-      type: '未知',
+      time: new Date().toLocaleTimeString('en-US'),
+      type: 'Unknown',
       db: selectedDb.value,
       status: 'error'
     })

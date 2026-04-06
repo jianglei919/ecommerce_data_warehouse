@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>数据导入工具</title>
+    <title>Data Import Tool</title>
     <style>
         * {
             margin: 0;
@@ -207,111 +207,111 @@
 
 <body>
     <div class="container">
-        <!-- 左侧：输入区域 -->
+        <!-- Left Panel: Input Area -->
         <div class="panel">
-            <h2>📥 JSON数据导入</h2>
+            <h2>📥 JSON Data Import</h2>
 
             <div class="control-group">
-                <label for="db">选择业务库 *</label>
+                <label for="db">Select Business Database *</label>
                 <select id="db">
-                    <option value="">-- 请选择 --</option>
-                    <option value="APP">APP库</option>
-                    <option value="WEB">WEB库</option>
+                    <option value="">-- Please Select --</option>
+                    <option value="APP">APP Database</option>
+                    <option value="WEB">WEB Database</option>
                 </select>
             </div>
 
             <div class="control-group">
-                <label for="jsonData">粘贴JSON数据</label>
-                <textarea id="jsonData" placeholder="粘贴单个对象或数组..."></textarea>
+                <label for="jsonData">Paste JSON Data</label>
+                <textarea id="jsonData" placeholder="Paste single object or array..."></textarea>
             </div>
 
             <div class="button-group">
-                <button class="btn-submit" onclick="submitData()">✓ 提交</button>
-                <button class="btn-validate" onclick="validateJson()">验证JSON</button>
-                <button class="btn-clear" onclick="clearForm()">清空</button>
+                <button class="btn-submit" onclick="submitData()">✓ Submit</button>
+                <button class="btn-validate" onclick="validateJson()">Validate JSON</button>
+                <button class="btn-clear" onclick="clearForm()">Clear</button>
             </div>
 
             <div id="messages"></div>
 
             <div id="history" style="display:none; margin-top: 2rem; padding-top: 2rem; border-top: 2px solid #f0f0f0;">
-                <h3>最近操作</h3>
+                <h3>Recent Operations</h3>
                 <div id="historyList"></div>
             </div>
         </div>
 
-        <!-- 右侧：模板 -->
+        <!-- Right Panel: Templates -->
         <div class="panel">
-            <h2>📋 数据模板</h2>
+            <h2>📋 Data Templates</h2>
 
-            <h3>产品 (新增)</h3>
+            <h3>Product (Create)</h3>
             <div class="template">
                 <pre>{
   "product_name": "iPhone 15 Pro",
   "category": "Electronics",
   "brand": "Apple"
 }</pre>
-                <button class="btn-copy" onclick="copyTemplate(this)">复制</button>
+                <button class="btn-copy" onclick="copyTemplate(this)">Copy</button>
             </div>
 
-            <h3>产品 (编辑)</h3>
+            <h3>Product (Update)</h3>
             <div class="template">
                 <pre>{
   "product_id": 1,
-  "product_name": "iPhone 15 Pro"
+  "product_name": "iPhone 15 Pro Max"
 }
-<span style="color: #999;">// 仅更新需要更改的字段
-// 不需要的字段可以删除，不会被更新</span></pre>
-                <button class="btn-copy" onclick="copyTemplate(this)">复制 (只复制ID和一个字段示例)</button>
+<span style="color: #999;">// Only update fields that need changing
+// Unnecessary fields can be removed, they won't be updated</span></pre>
+                <button class="btn-copy" onclick="copyTemplate(this)">Copy (ID and one field example)</button>
             </div>
 
-            <h3>订单 (新增)</h3>
+            <h3>Order (Create)</h3>
             <div class="template">
                 <pre>{
   "user_id": 1,
   "product_id": 1,
   "quantity": 1,
-  "total_amount": 999.99,
+  "total_amount": 9999.00,
   "status": "pending"
 }</pre>
-                <button class="btn-copy" onclick="copyTemplate(this)">复制</button>
+                <button class="btn-copy" onclick="copyTemplate(this)">Copy</button>
             </div>
 
-            <h3>订单 (编辑)</h3>
+            <h3>Order (Update)</h3>
             <div class="template">
                 <pre>{
   "order_id": 1001,
   "status": "shipped"
 }
-<span style="color: #999;">// 仅更新需要更改的字段
-// 不需要的字段可以删除，不会被更新</span></pre>
-                <button class="btn-copy" onclick="copyTemplate(this)">复制 (只复制ID和一个字段示例)</button>
+<span style="color: #999;">// Only update fields that need changing
+// Unnecessary fields can be removed, they won't be updated</span></pre>
+                <button class="btn-copy" onclick="copyTemplate(this)">Copy (ID and one field example)</button>
             </div>
 
-            <h3>订单项 (order_items - 自动生成)</h3>
+            <h3>Order Items (order_items - Auto-generated)</h3>
             <div class="template">
-                <pre>注：订单项会根据订单数据自动生成
-订单表中的字段映射到order_items表：
+                <pre>Note: Order items are automatically generated based on order data
+Mapping from order table to order_items table:
 - product_id → order_items.product_id
 - quantity → order_items.quantity
 - total_amount/quantity → order_items.unit_price
 - total_amount → order_items.subtotal
 
-无需手动输入order_items数据</pre>
-                <button class="btn-copy" onclick="copyTemplate(this)">复制</button>
+No need to manually input order_items data</pre>
+                <button class="btn-copy" onclick="copyTemplate(this)">Copy</button>
             </div>
 
             <div class="instructions">
-                <h3>📌 说明</h3>
+                <h3>📌 Instructions</h3>
                 <ul>
-                    <li>✓ <b>新增产品</b>：需要product_name、category；brand可选；不需要product_id</li>
-                    <li>✓ <b>编辑产品</b>：必须包含product_id，其他字段可选（仅填写想要修改的字段）</li>
-                    <li>✓ <b>新增订单</b>：必须包含user_id、product_id、quantity、total_amount</li>
-                    <li>✓ <b>编辑订单</b>：必须包含order_id，其他字段可选（仅填写想要修改的字段）</li>
-                    <li>✓ <b>智能部分更新</b>：编辑时不需要的字段可直接删除，系统只更新提交的字段，绝不覆盖已有值</li>
-                    <li>✓ <b>order_items自动生成</b>：提交订单时自动创建</li>
-                    <li>✓ <b>批量导入</b>：发送数组形式 [...]</li>
-                    <li>✓ <b>自动同步</b>到warehouse库（dim_products、dim_orders）</li>
-                    <li>✓ <b>Kafka消息</b>自动发送（product-events、order-events）</li>
+                    <li>✓ <b>Create Product</b>: Requires product_name, category; brand is optional; no product_id</li>
+                    <li>✓ <b>Update Product</b>: Must include product_id, other fields optional (only include fields to update)</li>
+                    <li>✓ <b>Create Order</b>: Must include user_id, product_id, quantity, total_amount</li>
+                    <li>✓ <b>Update Order</b>: Must include order_id, other fields optional (only include fields to update)</li>
+                    <li>✓ <b>Smart Partial Update</b>: Remove unneeded fields, system only updates submitted fields and won't overwrite existing values</li>
+                    <li>✓ <b>Auto-generated order_items</b>: Created automatically when submitting an order</li>
+                    <li>✓ <b>Batch Import</b>: Send as an array [...]</li>
+                    <li>✓ <b>Auto-sync</b> to warehouse DB (dim_products, dim_orders)</li>
+                    <li>✓ <b>Kafka Messages</b> sent automatically (product-events, order-events)</li>
                 </ul>
             </div>
         </div>
@@ -327,7 +327,7 @@
             messages.innerHTML = ''
 
             if (!jsonData) {
-                messages.innerHTML = '<div class="message info">请输入JSON数据</div>'
+                messages.innerHTML = '<div class="message info">Please enter JSON data</div>'
                 return
             }
 
@@ -335,9 +335,9 @@
                 const data = JSON.parse(jsonData)
                 const isArray = Array.isArray(data)
                 const count = isArray ? data.length : 1
-                messages.innerHTML = `<div class="message info">✓ JSON有效 (${isArray ? '数组' : '对象'}, ${count}条记录)</div>`
+                messages.innerHTML = `<div class="message info">✓ Valid JSON (${isArray ? 'Array' : 'Object'}, ${count} records)</div>`
             } catch (error) {
-                messages.innerHTML = `<div class="message error">✗ JSON格式错误: ${error.message}</div>`
+                messages.innerHTML = `<div class="message error">✗ Invalid JSON format: ${error.message}</div>`
             }
         }
 
@@ -346,7 +346,7 @@
             const text = pre.textContent
             navigator.clipboard.writeText(text).then(() => {
                 const oldText = btn.textContent
-                btn.textContent = '✓ 已复制'
+                btn.textContent = '✓ Copied'
                 setTimeout(() => {
                     btn.textContent = oldText
                 }, 2000)
@@ -360,12 +360,12 @@
             messages.innerHTML = ''
 
             if (!db) {
-                messages.innerHTML = '<div class="message error">✗ 请选择业务库</div>'
+                messages.innerHTML = '<div class="message error">✗ Please select a business database</div>'
                 return
             }
 
             if (!jsonData) {
-                messages.innerHTML = '<div class="message error">✗ 请输入JSON数据</div>'
+                messages.innerHTML = '<div class="message error">✗ Please enter JSON data</div>'
                 return
             }
 
@@ -388,7 +388,7 @@
                 }
 
                 if (!dataType) {
-                    messages.innerHTML = '<div class="message error">✗ 无法检测数据类型，请检查JSON格式</div>'
+                    messages.innerHTML = '<div class="message error">✗ Unable to detect data type, please check JSON format</div>'
                     return
                 }
 
@@ -405,33 +405,33 @@
                 const result = await response.json()
 
                 if (result.status === 'success') {
-                    const typeText = dataType === 'product' ? '产品' : '订单'
-                    messages.innerHTML = `<div class="message success">✓ 成功处理 ${result.count} 条${typeText}数据，已发送Kafka消息</div>`
+                    const typeText = dataType === 'product' ? 'Product' : 'Order'
+                    messages.innerHTML = `<div class="message success">✓ Successfully processed ${result.count} ${typeText} records, Kafka messages sent</div>`
                     document.getElementById('jsonData').value = ''
 
                     // 添加到历史
                     operations.unshift({
-                        time: new Date().toLocaleTimeString('zh-CN'),
+                        time: new Date().toLocaleTimeString('en-US'),
                         type: typeText,
                         db: db,
                         status: 'success'
                     })
                     updateHistory()
                 } else {
-                    messages.innerHTML = `<div class="message error">✗ ${result.message || '处理失败'}</div>`
+                    messages.innerHTML = `<div class="message error">✗ ${result.message || 'Processing failed'}</div>`
                     operations.unshift({
-                        time: new Date().toLocaleTimeString('zh-CN'),
-                        type: '错误',
+                        time: new Date().toLocaleTimeString('en-US'),
+                        type: 'Error',
                         db: db,
                         status: 'error'
                     })
                     updateHistory()
                 }
             } catch (error) {
-                messages.innerHTML = `<div class="message error">✗ 错误: ${error.message}</div>`
+                messages.innerHTML = `<div class="message error">✗ Error: ${error.message}</div>`
                 operations.unshift({
-                    time: new Date().toLocaleTimeString('zh-CN'),
-                    type: '错误',
+                    time: new Date().toLocaleTimeString('en-US'),
+                    type: 'Error',
                     db: document.getElementById('db').value,
                     status: 'error'
                 })
@@ -460,8 +460,8 @@
 
         // 页面加载完成提示
         window.addEventListener('load', () => {
-            console.log('✓ 数据导入工具已加载')
-            console.log('API地址: ' + API_BASE_URL)
+            console.log('✓ Data import tool loaded')
+            console.log('API Address: ' + API_BASE_URL)
         })
     </script>
 </body>
