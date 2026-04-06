@@ -52,6 +52,7 @@
   - `dim_orders` - 订单维度表 (20 条)
   - `dim_order_items` - 订单项目维度表
   - `fact_sales_by_product_time` - 销售事实表 (按产品和时间聚合)
+  - `fact_top_rated_products` - 商品评分排行事实表
   - `sync_log` - ETL 同步日志表 (记录事件处理状态)
 
 ## 🚀 快速开始
@@ -100,7 +101,7 @@ App业务系统 (order_id INT)
     ↓ [ETL转换]
 Web业务系统 (order_no VARCHAR)
     ↓ [数据统一]
-数据仓库 (dim_products, dim_orders, dim_order_items, fact_sales_by_product_time)
+数据仓库 (dim_products, dim_orders, dim_order_items, fact_sales_by_product_time, fact_top_rated_products)
     ↓ [多维分析]
 Dashboard展示
 ```
@@ -136,6 +137,7 @@ USE ecommerce_warehouse;
 SELECT COUNT(*) as dim_orders FROM dim_orders;  -- 应该是 20
 SELECT COUNT(*) as dim_products FROM dim_products;  -- 应该是 20
 SELECT COUNT(*) as fact_sales FROM fact_sales_by_product_time;  -- 聚合的事实表数据
+SELECT COUNT(*) as top_rated_products FROM fact_top_rated_products;  -- 商品评分排行事实表
 SELECT COUNT(*) as sync_logs FROM sync_log;  -- ETL 同步日志记录数
 SELECT * FROM fact_sales_by_product_time LIMIT 5;  -- 查看前5条数据
 ```

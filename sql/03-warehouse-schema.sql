@@ -1548,6 +1548,29 @@ VALUES
 UNLOCK TABLES;
 
 --
+-- Table structure for table `fact_top_rated_products`
+--
+DROP TABLE IF EXISTS `fact_top_rated_products`;
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+
+/*!50503 SET character_set_client = utf8mb4 */;
+
+CREATE TABLE
+  `fact_top_rated_products` (
+    `product_id` int NOT NULL,
+    `product_name` varchar(200) NOT NULL,
+    `category` varchar(50) DEFAULT NULL,
+    `avg_rating` decimal(3, 2) DEFAULT NULL,
+    `review_count` int NOT NULL DEFAULT '0',
+    PRIMARY KEY (`product_id`),
+    KEY `idx_category` (`category`),
+    KEY `idx_avg_rating` (`avg_rating`)
+  ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商品评分排行事实表';
+
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `sync_log`
 --
 DROP TABLE IF EXISTS `sync_log`;
