@@ -66,15 +66,15 @@
     </a-row>
 
     <!-- 测试订单按钮 -->
-    <a-row :gutter="[16, 16]" style="margin-top: 24px">
-      <a-col :xs="24">
-        <a-card title="🧪 Test ETL Pipeline">
-          <a-space>
-            <a-button @click="openDataInput" type="dashed" style="background-color: #faad14; color: white; border-color: #faad14;">📥 Data Input</a-button>
-          </a-space>
-        </a-card>
-      </a-col>
-    </a-row>
+<!--    <a-row :gutter="[16, 16]" style="margin-top: 24px">-->
+<!--      <a-col :xs="24">-->
+<!--        <a-card title="🧪 Test ETL Pipeline">-->
+<!--          <a-space>-->
+<!--            <a-button @click="openDataInput" type="dashed" style="background-color: #faad14; color: white; border-color: #faad14;">📥 Data Input</a-button>-->
+<!--          </a-space>-->
+<!--        </a-card>-->
+<!--      </a-col>-->
+<!--    </a-row>-->
   </div>
 </template>
 
