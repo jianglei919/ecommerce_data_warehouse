@@ -800,15 +800,18 @@ CREATE TABLE `fact_sales_by_product_time` (
 
 -- Sync Log Table (For monitoring and debugging)
 CREATE TABLE sync_log (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    event_type VARCHAR(50),
-    source VARCHAR(20),
-    order_id VARCHAR(50),
-    status VARCHAR(30),
-    error_message TEXT,
-    sync_time DATETIME,
-    KEY idx_source_time (source, sync_time),
-    KEY idx_status (status)
+  sync_log_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  event_id VARCHAR(100) NOT NULL,
+  event_type VARCHAR(50),
+  source VARCHAR(50),
+  order_id VARCHAR(100),
+  status VARCHAR(20),
+  error_message TEXT,
+  sync_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_event_id (event_id),
+  KEY idx_source_time (source, sync_time),
+  KEY idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
