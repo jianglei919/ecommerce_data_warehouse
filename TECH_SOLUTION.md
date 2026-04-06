@@ -106,6 +106,7 @@ graph TB
         dim_ord["dim_orders"]
         dim_items["dim_order_items"]
         fact_sales["fact_sales_by_product_time"]
+      fact_top["fact_top_rated_products"]
     end
 
     subgraph api["API层"]
@@ -129,6 +130,7 @@ graph TB
     warehouse_db --> dim_ord
     warehouse_db --> dim_items
     warehouse_db --> fact_sales
+    warehouse_db --> fact_top
     warehouse_db --> analytics_api
     warehouse_db --> export_api
     analytics_api --> dashboard
@@ -229,6 +231,7 @@ graph TD
     l2["INSERT/UPDATE<br/>dim_orders"]
     l3["INSERT/UPDATE<br/>dim_order_items"]
     l4["INSERT/UPDATE<br/>fact_sales_by_product_time"]
+    l5["INSERT/UPDATE<br/>fact_top_rated_products"]
     handler["CompletionHandler<br/>(完成处理)"]
     h1["记录同步日志"]
     h2["发送邮件/消息"]
@@ -252,10 +255,12 @@ graph TD
     load --> l2
     load --> l3
     load --> l4
+    load --> l5
     l1 --> handler
     l2 --> handler
     l3 --> handler
     l4 --> handler
+    l5 --> handler
     handler --> h1
     handler --> h2
     handler --> h3
@@ -275,13 +280,14 @@ graph TD
     style l2 fill:#fce4ec,stroke:#c2185b,stroke-width:1px
     style l3 fill:#fce4ec,stroke:#c2185b,stroke-width:1px
     style l4 fill:#fce4ec,stroke:#c2185b,stroke-width:1px
+    style l5 fill:#fce4ec,stroke:#c2185b,stroke-width:1px
     style handler fill:#e0f2f1,stroke:#00897b,stroke-width:2px
     style h1 fill:#e0f2f1,stroke:#00897b,stroke-width:1px
     style h2 fill:#e0f2f1,stroke:#00897b,stroke-width:1px
     style h3 fill:#e0f2f1,stroke:#00897b,stroke-width:1px
 ```
 
-仓库层的实际表为：`dim_products`、`dim_orders`、`dim_order_items`、`fact_sales_by_product_time`。
+仓库层的实际表为：`dim_products`、`dim_orders`、`dim_order_items`、`fact_sales_by_product_time`、`fact_top_rated_products`。
 
 ---
 
@@ -800,6 +806,18 @@ CREATE TABLE `fact_sales_by_product_time` (
   CONSTRAINT `fact_sales_by_product_time_ibfk_1` FOREIGN KEY (`product_key`) REFERENCES `dim_products` (`product_key`)
 ) ENGINE=InnoDB AUTO_INCREMENT=45 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='销售事实表 (按商品+时间维度)';
 
+-- 商品评分排行事实表
+CREATE TABLE `fact_top_rated_products` (
+  `product_id` int NOT NULL,
+  `product_name` varchar(200) NOT NULL,
+  `category` varchar(50) DEFAULT NULL,
+  `avg_rating` decimal(3,2) DEFAULT NULL,
+  `review_count` int NOT NULL DEFAULT 0,
+  PRIMARY KEY (`product_id`),
+  KEY `idx_category` (`category`),
+  KEY `idx_avg_rating` (`avg_rating`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='商品评分排行事实表';
+
 -- 同步日志表（用于监控和调试）
 CREATE TABLE sync_log (
   sync_log_id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -917,7 +935,7 @@ public class AnalyticsService {
 | ------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Dashboard 首页            | `/`               | `GET /api/analytics/sales/summary`、`GET /api/analytics/sales/by-date`                                                                                                                                                    | `dim_orders`、`dim_order_items`                                                                                                                                                                                                                         |
 | Sales Analytics 销售分析  | `/sales`          | `GET /api/analytics/sales/by-category`                                                                                                                                                                                    | `dim_orders`、`dim_order_items`                                                                                                                                                                                                                         |
-| Product Insights 商品洞察 | `/products`       | `GET /api/analytics/products/top-rated`                                                                                                                                                                                   | `dim_products`、`dim_order_items`、`dim_orders`                                                                                                                                                                                                         |
+| Product Insights 商品洞察 | `/products`       | `GET /api/analytics/products/top-rated`                                                                                                                                                                                   | `fact_top_rated_products`、`dim_products`                                                                                                                                                                                                               |
 | Sync Monitor 同步监控     | `/sync`           | `GET /api/analytics/sync/statistics`、`GET /api/analytics/sync/logs`                                                                                                                                                      | `sync_log`                                                                                                                                                                                                                                              |
 | Unified Orders 统一订单   | `/orders`         | `GET /api/unified-orders`、`GET /api/unified-orders/{id}`、`GET /api/unified-orders/overview`、`GET /api/unified-orders/stats/by-source`、`GET /api/unified-orders/stats/product-sales`                                   | `dim_orders`、`dim_order_items`、`dim_products`                                                                                                                                                                                                         |
 | OLAP Analytics 多维分析   | `/olap`           | `GET /api/unified-orders/analytics/rollup`、`GET /api/unified-orders/analytics/drilldown`、`GET /api/unified-orders/analytics/slice`、`GET /api/unified-orders/analytics/dice`、`GET /api/unified-orders/analytics/pivot` | `fact_sales_by_product_time`、`dim_products`                                                                                                                                                                                                            |
@@ -926,7 +944,7 @@ public class AnalyticsService {
 #### 补充说明
 
 - Dashboard 页面还通过 WebSocket 订阅 `/topic/warehouse-updates` 获取实时同步状态，但这是消息通道，不是数据库表。
-- `Product Insights` 当前评分展示基于仓库销售数据计算，不直接读取 `product_reviews` 表。
+- `Product Insights` 由 `fact_top_rated_products` 提供商品评分与评论数排行数据。
 - `Unified Orders` 和 `OLAP Analytics` 的数据都来自仓库层，核心事实表为 `fact_sales_by_product_time`，维度表为 `dim_orders`、`dim_order_items`、`dim_products`。
 
 ### 第6层：前端展示层
@@ -1020,7 +1038,7 @@ graph TD
     kafka["Kafka Topic<br/>(order-events)<br/>Partitions: 3"]
     consumer["WarehouseETLConsumer<br/>(并发消费)"]
     transform["Transform/Validate"]
-    warehouse["Warehouse Database<br/>dim_products<br/>dim_orders<br/>dim_order_items<br/>fact_sales_by_product_time"]
+    warehouse["Warehouse Database<br/>dim_products<br/>dim_orders<br/>dim_order_items<br/>fact_sales_by_product_time<br/>fact_top_rated_products"]
     api["API Query Layer"]
     frontend["Vue3 Frontend<br/>(WebSocket更新)"]
 

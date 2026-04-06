@@ -106,6 +106,7 @@ graph TB
         dim_ord["dim_orders"]
         dim_items["dim_order_items"]
         fact_sales["fact_sales_by_product_time"]
+      fact_top["fact_top_rated_products"]
     end
 
     subgraph api["API Layer"]
@@ -129,6 +130,7 @@ graph TB
     warehouse_db --> dim_ord
     warehouse_db --> dim_items
     warehouse_db --> fact_sales
+    warehouse_db --> fact_top
     warehouse_db --> analytics_api
     warehouse_db --> export_api
     analytics_api --> dashboard
@@ -229,6 +231,7 @@ graph TD
     l2["INSERT/UPDATE<br/>dim_orders"]
     l3["INSERT/UPDATE<br/>dim_order_items"]
     l4["INSERT/UPDATE<br/>fact_sales_by_product_time"]
+    l5["INSERT/UPDATE<br/>fact_top_rated_products"]
     handler["CompletionHandler<br/>(Post-Processing)"]
     h1["Record Sync Logs"]
     h2["Send Email/Messages"]
@@ -252,10 +255,12 @@ graph TD
     load --> l2
     load --> l3
     load --> l4
+    load --> l5
     l1 --> handler
     l2 --> handler
     l3 --> handler
     l4 --> handler
+    l5 --> handler
     handler --> h1
     handler --> h2
     handler --> h3
@@ -275,13 +280,14 @@ graph TD
     style l2 fill:#fce4ec,stroke:#c2185b,stroke-width:1px
     style l3 fill:#fce4ec,stroke:#c2185b,stroke-width:1px
     style l4 fill:#fce4ec,stroke:#c2185b,stroke-width:1px
+    style l5 fill:#fce4ec,stroke:#c2185b,stroke-width:1px
     style handler fill:#e0f2f1,stroke:#00897b,stroke-width:2px
     style h1 fill:#e0f2f1,stroke:#00897b,stroke-width:1px
     style h2 fill:#e0f2f1,stroke:#00897b,stroke-width:1px
     style h3 fill:#e0f2f1,stroke:#00897b,stroke-width:1px
 ```
 
-The actual warehouse tables are: `dim_products`, `dim_orders`, `dim_order_items`, and `fact_sales_by_product_time`.
+The actual warehouse tables are: `dim_products`, `dim_orders`, `dim_order_items`, `fact_sales_by_product_time`, and `fact_top_rated_products`.
 
 ---
 
@@ -798,6 +804,18 @@ CREATE TABLE `fact_sales_by_product_time` (
   CONSTRAINT `fact_sales_by_product_time_ibfk_1` FOREIGN KEY (`product_key`) REFERENCES `dim_products` (`product_key`)
 ) ENGINE=InnoDB AUTO_INCREMENT=45 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Sales Fact Table (By Product and Time Dimensions)';
 
+-- Top Rated Products Fact Table
+CREATE TABLE `fact_top_rated_products` (
+  `product_id` int NOT NULL,
+  `product_name` varchar(200) NOT NULL,
+  `category` varchar(50) DEFAULT NULL,
+  `avg_rating` decimal(3,2) DEFAULT NULL,
+  `review_count` int NOT NULL DEFAULT 0,
+  PRIMARY KEY (`product_id`),
+  KEY `idx_category` (`category`),
+  KEY `idx_avg_rating` (`avg_rating`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Top rated products fact table';
+
 -- Sync Log Table (For monitoring and debugging)
 CREATE TABLE sync_log (
   sync_log_id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -915,7 +933,7 @@ The table below is aligned with the current frontend routes and page functions f
 | ---------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Dashboard Home   | `/`               | `GET /api/analytics/sales/summary`, `GET /api/analytics/sales/by-date`                                                                                                                                                    | `dim_orders`, `dim_order_items`                                                                                                                                                                                                                         |
 | Sales Analytics  | `/sales`          | `GET /api/analytics/sales/by-category`                                                                                                                                                                                    | `dim_orders`, `dim_order_items`                                                                                                                                                                                                                         |
-| Product Insights | `/products`       | `GET /api/analytics/products/top-rated`                                                                                                                                                                                   | `dim_products`, `dim_order_items`, `dim_orders`                                                                                                                                                                                                         |
+| Product Insights | `/products`       | `GET /api/analytics/products/top-rated`                                                                                                                                                                                   | `fact_top_rated_products`, `dim_products`                                                                                                                                                                                                               |
 | Sync Monitor     | `/sync`           | `GET /api/analytics/sync/statistics`, `GET /api/analytics/sync/logs`                                                                                                                                                      | `sync_log`                                                                                                                                                                                                                                              |
 | Unified Orders   | `/orders`         | `GET /api/unified-orders`, `GET /api/unified-orders/{id}`, `GET /api/unified-orders/overview`, `GET /api/unified-orders/stats/by-source`, `GET /api/unified-orders/stats/product-sales`                                   | `dim_orders`, `dim_order_items`, `dim_products`                                                                                                                                                                                                         |
 | OLAP Analytics   | `/olap`           | `GET /api/unified-orders/analytics/rollup`, `GET /api/unified-orders/analytics/drilldown`, `GET /api/unified-orders/analytics/slice`, `GET /api/unified-orders/analytics/dice`, `GET /api/unified-orders/analytics/pivot` | `fact_sales_by_product_time`, `dim_products`                                                                                                                                                                                                            |
@@ -924,7 +942,7 @@ The table below is aligned with the current frontend routes and page functions f
 #### Notes
 
 - The Dashboard page also subscribes to `/topic/warehouse-updates` via WebSocket for real-time status, but that is a message channel rather than a database table.
-- `Product Insights` currently renders ratings derived from warehouse sales metrics instead of reading the `product_reviews` table directly.
+- `Product Insights` is backed by `fact_top_rated_products` for product rating and review ranking output.
 - `Unified Orders` and `OLAP Analytics` are both powered by warehouse data, primarily `fact_sales_by_product_time` together with the dimension tables `dim_orders`, `dim_order_items`, and `dim_products`.
 
 ### Layer 6: Frontend Presentation Layer
@@ -1018,7 +1036,7 @@ graph TD
     kafka["Kafka Topic<br/>(order-events)<br/>Partitions: 3"]
     consumer["WarehouseETLConsumer<br/>(Concurrent Processing)"]
     transform["Transform/Validate"]
-    warehouse["Warehouse Database<br/>dim_products<br/>dim_orders<br/>dim_order_items<br/>fact_sales_by_product_time"]
+    warehouse["Warehouse Database<br/>dim_products<br/>dim_orders<br/>dim_order_items<br/>fact_sales_by_product_time<br/>fact_top_rated_products"]
     api["API Query Layer"]
     frontend["Vue3 Frontend<br/>(WebSocket Updates)"]
 
